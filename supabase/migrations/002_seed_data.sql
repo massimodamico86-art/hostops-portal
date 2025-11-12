@@ -8,8 +8,12 @@
 -- In a real scenario, this would be created automatically when a user signs up
 -- For testing, you can insert with a UUID that matches your Supabase auth user
 
--- Example: INSERT INTO public.profiles (id, email, full_name, role)
--- VALUES ('YOUR_USER_ID_HERE', 'demo@hostops.com', 'Demo User', 'admin');
+-- Insert profile only if it doesn't exist
+INSERT INTO public.profiles (id, email, full_name, role)
+VALUES ('c5a025d1-a2ec-4219-bed6-dd166ae77a57', 'test@hostops.com', 'Test User', 'admin')
+ON CONFLICT (id) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  role = EXCLUDED.role;
 
 -- =====================================================
 -- SAMPLE LISTINGS
@@ -57,7 +61,7 @@ INSERT INTO public.listings (
   tours_link
 ) VALUES (
   '11111111-1111-1111-1111-111111111111',
-  'YOUR_USER_ID_HERE', -- Replace with your actual user ID
+  'c5a025d1-a2ec-4219-bed6-dd166ae77a57', -- Supabase auth user ID
   'Luxury Beach House',
   'Stunning beachfront property with panoramic ocean views',
   '123 Ocean Drive, Miami Beach, FL',
@@ -137,7 +141,7 @@ INSERT INTO public.listings (
   show_welcome_message
 ) VALUES (
   '22222222-2222-2222-2222-222222222222',
-  'YOUR_USER_ID_HERE', -- Replace with your actual user ID
+  'c5a025d1-a2ec-4219-bed6-dd166ae77a57', -- Supabase auth user ID
   'Downtown Loft',
   'Modern loft in the heart of downtown',
   '456 Main St, New York, NY',
@@ -212,7 +216,7 @@ INSERT INTO public.listings (
   show_welcome_message
 ) VALUES (
   '33333333-3333-3333-3333-333333333333',
-  'YOUR_USER_ID_HERE', -- Replace with your actual user ID
+  'c5a025d1-a2ec-4219-bed6-dd166ae77a57', -- Supabase auth user ID
   'Mountain Cabin',
   'Cozy mountain retreat with stunning views',
   '789 Pine Trail, Aspen, CO',
