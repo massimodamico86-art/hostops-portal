@@ -1,6 +1,7 @@
 import { Plus, X, Edit } from 'lucide-react';
+import ImageUploadButton from '../ImageUploadButton';
 
-export const CarouselMediaManager = ({ formData, setFormData, setShowImageUpload, setUploadTarget, showToast }) => {
+export const CarouselMediaManager = ({ formData, setFormData, showToast }) => {
   return (
     <div className="border rounded-lg p-4">
       <h3 className="font-semibold mb-3">Carousel Media</h3>
@@ -29,51 +30,43 @@ export const CarouselMediaManager = ({ formData, setFormData, setShowImageUpload
                   alt={`Carousel ${idx + 1}`}
                   className="w-full h-full object-cover"
                 />
-                {/* Hover Overlay with Edit and Delete */}
-                <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-50 transition-opacity"></div>
-                <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setUploadTarget({ type: 'carousel', index: idx });
-                      setShowImageUpload(true);
-                    }}
-                    className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-100"
-                  >
-                    <Edit size={16} className="text-gray-700" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newImages = (formData.carouselImages || []).filter((_, i) => i !== idx);
-                      setFormData({ ...formData, carouselImages: newImages });
-                    }}
-                    className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-red-50"
-                  >
-                    <X size={16} className="text-red-500" />
-                  </button>
-                </div>
+                {/* Delete Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newImages = (formData.carouselImages || []).filter((_, i) => i !== idx);
+                    setFormData({ ...formData, carouselImages: newImages });
+                  }}
+                  className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+                >
+                  <X size={14} className="text-white" />
+                </button>
               </div>
             ))}
 
             {/* Add New Image Button */}
             {(!formData.carouselImages || formData.carouselImages.length < 6) && (
-              <button
-                onClick={() => {
-                  const currentImages = formData.carouselImages || [];
-                  const newIndex = currentImages.length;
-                  setFormData({
-                    ...formData,
-                    carouselImages: [...currentImages, '']
-                  });
-                  setUploadTarget({ type: 'carousel', index: newIndex });
-                  setShowImageUpload(true);
-                }}
-                className="aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-gray-400 transition-colors bg-gray-50 hover:bg-gray-100"
-              >
-                <Plus size={32} className="text-gray-400 mb-1" />
-                <span className="text-xs text-gray-500">Add Image</span>
-              </button>
+              <div className="aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 p-2">
+                <ImageUploadButton
+                  onImageUploaded={(imageUrl) => {
+                    const currentImages = formData.carouselImages || [];
+                    setFormData({
+                      ...formData,
+                      carouselImages: [...currentImages, imageUrl]
+                    });
+                  }}
+                  buttonText="Add Image"
+                  buttonVariant="ghost"
+                  folder="hostops/carousel"
+                  transformation={{
+                    width: 1200,
+                    height: 800,
+                    crop: 'fill',
+                    quality: 'auto'
+                  }}
+                  className="w-full h-full flex flex-col items-center justify-center"
+                />
+              </div>
             )}
           </div>
         </div>

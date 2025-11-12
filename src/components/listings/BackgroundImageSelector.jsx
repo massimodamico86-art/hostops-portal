@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import Modal from '../Modal';
 import Button from '../Button';
+import ImageUploadButton from '../ImageUploadButton';
 export const BackgroundImageSelector = ({ isOpen, onClose, currentImage, onSelect }) => {
   const [selectedImage, setSelectedImage] = useState(currentImage || '');
-  const fileInputRef = useRef(null);
 
   // Update selected image when currentImage prop changes or modal opens
   useEffect(() => {
@@ -12,7 +12,7 @@ export const BackgroundImageSelector = ({ isOpen, onClose, currentImage, onSelec
       setSelectedImage(currentImage || '');
     }
   }, [isOpen, currentImage]);
-  
+
   const stockImages = [
     'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=3840',
     'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=3840',
@@ -23,16 +23,9 @@ export const BackgroundImageSelector = ({ isOpen, onClose, currentImage, onSelec
     'https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=3840',
     'https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?w=3840',
   ];
-  
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedImage(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+
+  const handleImageUploaded = (imageUrl) => {
+    setSelectedImage(imageUrl);
   };
   
   const handleSave = () => {
@@ -45,38 +38,44 @@ export const BackgroundImageSelector = ({ isOpen, onClose, currentImage, onSelec
   return (
     <Modal isOpen={true} onClose={onClose} title="Select background image" size="large">
       <div className="space-y-4">
-        {/* Stock Images Thumbnails */}
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileSelect}
-            className="hidden"
+        {/* Upload Your Own */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-2">Upload your own image</label>
+          <ImageUploadButton
+            onImageUploaded={handleImageUploaded}
+            buttonText="Upload from Computer"
+            folder="hostops/backgrounds"
+            transformation={{
+              width: 1920,
+              height: 1080,
+              crop: 'fill',
+              quality: 'auto'
+            }}
           />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex-shrink-0 w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-gray-400 transition-colors bg-gray-50"
-          >
-            <Plus size={32} className="text-gray-400" />
-          </button>
-          {stockImages.map((img, idx) => (
-            <button
-              key={idx}
-              onClick={() => setSelectedImage(img)}
-              className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
-                selectedImage === img ? 'border-blue-500 shadow-lg' : 'border-gray-200 hover:border-gray-300'
-              }`}
-              style={{ height: '96px' }}
-            >
-              <img 
-                src={img} 
-                alt={`Option ${idx + 1}`} 
-                className="h-full object-cover"
-                style={{ width: 'auto', maxWidth: '200px' }}
-              />
-            </button>
-          ))}
+        </div>
+
+        {/* Stock Images Thumbnails */}
+        <div>
+          <label className="block text-sm font-medium mb-2">Or choose from stock images</label>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {stockImages.map((img, idx) => (
+              <button
+                key={idx}
+                onClick={() => setSelectedImage(img)}
+                className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
+                  selectedImage === img ? 'border-blue-500 shadow-lg' : 'border-gray-200 hover:border-gray-300'
+                }`}
+                style={{ height: '96px' }}
+              >
+                <img
+                  src={img}
+                  alt={`Option ${idx + 1}`}
+                  className="h-full object-cover"
+                  style={{ width: 'auto', maxWidth: '200px' }}
+                />
+              </button>
+            ))}
+          </div>
         </div>
         
         {/* Current Background Preview */}

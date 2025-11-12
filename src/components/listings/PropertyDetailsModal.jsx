@@ -17,6 +17,7 @@ import { CarouselMediaManager } from './CarouselMediaManager';
 import { BackgroundMediaManager } from './BackgroundMediaManager';
 import { QRCodeManager } from './QRCodeManager';
 import { GuestListTab } from './GuestListTab';
+import ImageUploadButton from '../ImageUploadButton';
 import ScaledStage from '../../ScaledStage';
 import { Layout1, Layout2, Layout3, Layout4 } from '../../layouts';
 import { getConfig, fetchDeviceConfig } from '../../getConfig';
@@ -389,8 +390,6 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
                 <CarouselMediaManager
                   formData={formData}
                   setFormData={setFormData}
-                  setShowImageUpload={setShowImageUpload}
-                  setUploadTarget={setUploadTarget}
                   showToast={showToast}
                 />
 
@@ -492,22 +491,26 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
                               logo: e.target.value,
                             })
                           }
-                          placeholder="Logo URL or click Upload"
+                          placeholder="Logo URL or upload"
                           className="flex-1 px-3 py-2 border rounded-lg text-sm"
                         />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setUploadTarget({ type: 'logo', index: null });
-                            setShowImageUpload(true);
+                        <ImageUploadButton
+                          onImageUploaded={(imageUrl) => {
+                            setFormData({ ...formData, logo: imageUrl });
                           }}
-                        >
-                          Upload
-                        </Button>
+                          buttonText="Upload"
+                          buttonVariant="outline"
+                          folder="hostops/logos"
+                          transformation={{
+                            width: 400,
+                            height: 400,
+                            crop: 'fit',
+                            quality: 'auto'
+                          }}
+                        />
                       </div>
                       <p className="text-xs text-gray-400 mt-1">
-                        Aspect ratio should be either 1:1 or 16:9
+                        Recommended: Square (1:1) or widescreen (16:9) format
                       </p>
                     </div>
                     <div>
