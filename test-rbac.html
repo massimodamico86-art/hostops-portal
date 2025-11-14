@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RBAC Testing - HostOps Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-50">
+  <div class="min-h-screen p-8">
+    <div class="max-w-6xl mx-auto">
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">RBAC Testing Dashboard</h1>
+      <p class="text-gray-600 mb-8">
+        <span id="current-user-email" class="font-semibold">Not logged in</span>
+        <span id="current-user-role" class="ml-2"></span>
+      </p>
+
+      <!-- Login Section -->
+      <div id="login-section" class="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Login as Super Admin</h2>
+        <div class="space-y-4">
+          <input type="email" id="email" placeholder="Email" class="w-full px-4 py-2 border rounded-lg" value="mvproperties305@gmail.com">
+          <input type="password" id="password" placeholder="Password" class="w-full px-4 py-2 border rounded-lg">
+          <button onclick="login()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Login</button>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div id="message" class="hidden mb-4 p-4 rounded-lg"></div>
+
+      <!-- Action Buttons -->
+      <div id="actions-section" class="hidden bg-white rounded-lg shadow p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Create Test Users</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <button onclick="createTestAdmin()" class="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            Create Test Admin
+          </button>
+          <button onclick="createTestClient(1)" class="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
+            Create Test Client 1
+          </button>
+          <button onclick="createTestClient(2)" class="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
+            Create Test Client 2
+          </button>
+        </div>
+        <button onclick="loadUsers()" class="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900">
+          Refresh Users List
+        </button>
+      </div>
+
+      <!-- Users Table -->
+      <div id="users-section" class="hidden bg-white rounded-lg shadow overflow-hidden">
+        <h2 class="text-xl font-semibold p-6 border-b">All Users</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Full Name</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Managed By</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body" class="bg-white divide-y divide-gray-200">
+              <tr>
+                <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                  Click "Refresh Users List" to load users
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Test Credentials -->
+      <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h3 class="font-semibold text-blue-900 mb-3">Test User Credentials</h3>
+        <div class="space-y-2 text-sm text-blue-800">
+          <p><strong>Super Admin:</strong> mvproperties305@gmail.com / [your password]</p>
+          <p><strong>Test Admin:</strong> testadmin@hostops.com / TestAdmin123!</p>
+          <p><strong>Test Client 1:</strong> testclient1@hostops.com / TestClient123!</p>
+          <p><strong>Test Client 2:</strong> testclient2@hostops.com / TestClient123!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Supabase client
+    // IMPORTANT: Replace these with your actual Supabase URL and anon key
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+    let supabase;
+    let currentUser = null;
+
+    // Try to get Supabase credentials from environment or prompt user
+    async function initSupabase() {
+      // You'll need to replace these with your actual values
+      const url = prompt('Enter your Supabase URL:', SUPABASE_URL);
+      const key = prompt('Enter your Supabase Anon Key:', SUPABASE_ANON_KEY);
+
+      supabase = supabase.createClient(url, key);
+
+      // Check if user is already logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        await loadUserProfile();
+        showActionsSection();
+      }
+    }
+
+    async function loadUserProfile() {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (error) {
+        showMessage('Error loading profile: ' + error.message, 'error');
+        return;
+      }
+
+      document.getElementById('current-user-email').textContent = data.email;
+      document.getElementById('current-user-role').innerHTML = `
+        <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">${data.role}</span>
+      `;
+
+      if (data.role !== 'super_admin') {
+        showMessage('Access Denied: Only super admins can use this page', 'error');
+        document.getElementById('actions-section').classList.add('hidden');
+      }
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        showMessage('Login failed: ' + error.message, 'error');
+        return;
+      }
+
+      currentUser = data.user;
+      await loadUserProfile();
+      showActionsSection();
+      showMessage('Logged in successfully!', 'success');
+    }
+
+    async function createTestAdmin() {
+      showMessage('Creating admin...', 'info');
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: 'testadmin@hostops.com',
+        password: 'TestAdmin123!',
+        options: {
+          data: {
+            full_name: 'Test Admin User'
+          }
+        }
+      });
+
+      if (authError) {
+        showMessage('Error: ' + authError.message, 'error');
+        return;
+      }
+
+      // Update profile to admin role
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ role: 'admin' })
+        .eq('id', authData.user.id);
+
+      if (updateError) {
+        showMessage('Error updating role: ' + updateError.message, 'error');
+        return;
+      }
+
+      showMessage(`✅ Admin created: testadmin@hostops.com (ID: ${authData.user.id})`, 'success');
+      await loadUsers();
+    }
+
+    async function createTestClient(clientNumber) {
+      showMessage(`Creating client ${clientNumber}...`, 'info');
+
+      const email = `testclient${clientNumber}@hostops.com`;
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password: 'TestClient123!',
+        options: {
+          data: {
+            full_name: `Test Client ${clientNumber}`
+          }
+        }
+      });
+
+      if (authError) {
+        showMessage('Error: ' + authError.message, 'error');
+        return;
+      }
+
+      showMessage(`✅ Client ${clientNumber} created: ${email} (ID: ${authData.user.id})`, 'success');
+      await loadUsers();
+    }
+
+    async function loadUsers() {
+      showMessage('Loading users...', 'info');
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        showMessage('Error loading users: ' + error.message, 'error');
+        return;
+      }
+
+      const tbody = document.getElementById('users-table-body');
+      tbody.innerHTML = '';
+
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No users found</td></tr>';
+        return;
+      }
+
+      data.forEach(user => {
+        const roleClass = user.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
+                         user.role === 'admin' ? 'bg-blue-100 text-blue-800' :
+                         'bg-green-100 text-green-800';
+
+        const managedBy = user.managed_by ?
+          (data.find(u => u.id === user.managed_by)?.email || user.managed_by) : '-';
+
+        const actions = user.role === 'client' && !user.managed_by ?
+          `<button onclick="assignClient('${user.id}')" class="text-blue-600 hover:text-blue-800 text-xs">Assign to Admin</button>` :
+          user.role === 'client' && user.managed_by ?
+          `<button onclick="unassignClient('${user.id}')" class="text-red-600 hover:text-red-800 text-xs">Unassign</button>` :
+          '-';
+
+        tbody.innerHTML += `
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.email}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.full_name || '-'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+              <span class="px-2 py-1 text-xs rounded ${roleClass}">${user.role}</span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${managedBy}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">${actions}</td>
+          </tr>
+        `;
+      });
+
+      document.getElementById('users-section').classList.remove('hidden');
+      showMessage(`✅ Loaded ${data.length} users`, 'success');
+    }
+
+    async function assignClient(clientId) {
+      // Find first admin user
+      const { data: admins } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'admin')
+        .limit(1);
+
+      if (!admins || admins.length === 0) {
+        showMessage('No admin user found. Create one first.', 'error');
+        return;
+      }
+
+      const { error } = await supabase.rpc('assign_client_to_admin', {
+        client_id: clientId,
+        admin_id: admins[0].id
+      });
+
+      if (error) {
+        showMessage('Error assigning client: ' + error.message, 'error');
+        return;
+      }
+
+      showMessage('✅ Client assigned to admin', 'success');
+      await loadUsers();
+    }
+
+    async function unassignClient(clientId) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ managed_by: null })
+        .eq('id', clientId);
+
+      if (error) {
+        showMessage('Error unassigning client: ' + error.message, 'error');
+        return;
+      }
+
+      showMessage('✅ Client unassigned', 'success');
+      await loadUsers();
+    }
+
+    function showMessage(message, type) {
+      const messageDiv = document.getElementById('message');
+      messageDiv.className = `mb-4 p-4 rounded-lg ${
+        type === 'error' ? 'bg-red-50 border border-red-200 text-red-800' :
+        type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' :
+        'bg-blue-50 border border-blue-200 text-blue-800'
+      }`;
+      messageDiv.textContent = message;
+      messageDiv.classList.remove('hidden');
+    }
+
+    function showActionsSection() {
+      document.getElementById('login-section').classList.add('hidden');
+      document.getElementById('actions-section').classList.remove('hidden');
+    }
+
+    // Initialize on page load
+    //initSupabase();
+  </script>
+
+  <div class="fixed bottom-4 right-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-md">
+    <p class="text-sm text-yellow-800">
+      <strong>Note:</strong> This standalone test page requires your Supabase URL and Anon Key.
+      <br><br>
+      <strong>Easier option:</strong> Use SQL directly in Supabase Dashboard to create test users.
+    </p>
+  </div>
+</body>
+</html>

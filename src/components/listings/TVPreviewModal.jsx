@@ -4,6 +4,7 @@ import ScaledStage from '../../ScaledStage';
 import { Layout1, Layout2, Layout3, Layout4 } from '../../layouts';
 import { getConfig } from '../../getConfig';
 import { getWeather } from '../../services/weatherService';
+import { getActiveGuestForLayout } from '../../utils/guestHelpers';
 
 export const TVPreviewModal = ({ listing, onClose }) => {
   const layout = listing.tvLayout || 'layout1';
@@ -68,33 +69,8 @@ export const TVPreviewModal = ({ listing, onClose }) => {
     logo: listing.logo
   };
 
-  // Get active guest
-  const getActiveGuest = () => {
-    if (!listing.guestList || listing.guestList.length === 0) return null;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return listing.guestList.find(guest => {
-      try {
-        const checkIn = new Date(guest.checkIn);
-        const checkOut = new Date(guest.checkOut);
-        checkIn.setHours(0, 0, 0, 0);
-        checkOut.setHours(0, 0, 0, 0);
-        return today >= checkIn && today <= checkOut;
-      } catch {
-        return false;
-      }
-    });
-  };
-
-  const activeGuest = getActiveGuest();
-
-  // Convert guest data to match layout expectations
-  const guestData = activeGuest ? {
-    guest_first: activeGuest.firstName,
-    guest_last: activeGuest.lastName
-  } : null;
+  // Get active guest using utility function
+  const guestData = getActiveGuestForLayout(listing.guestList);
 
   return (
     <Modal isOpen={true} onClose={onClose} title={`TV Preview - ${listing.name} (${layout})`} size="xlarge">

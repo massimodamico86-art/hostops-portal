@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Get Supabase User ID</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input {
+            padding: 10px;
+            width: 300px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔑 Get Your Supabase User ID</h1>
+
+    <div id="loginSection">
+        <h2>Step 1: Sign Up / Log In</h2>
+        <p>First, you need to create a user account in your Supabase project:</p>
+
+        <div>
+            <input type="email" id="email" placeholder="your@email.com" value="test@hostops.com">
+            <input type="password" id="password" placeholder="password" value="testpassword123">
+        </div>
+
+        <button onclick="signUp()">Sign Up New User</button>
+        <button onclick="login()">Log In Existing User</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+        const SUPABASE_URL = 'https://cymticrjzidywukflwtv.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5bXRpY3JqemlkeXd1a2Zsd3R2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0MjY1MzMsImV4cCI6MjA3ODAwMjUzM30.C7LNJktfiaGIWPdALInLxPPvJEJPsKto75RF6QJfk6o';
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        window.signUp = async function() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultsDiv = document.getElementById('results');
+
+            resultsDiv.innerHTML = '<div class="status info">Creating user...</div>';
+
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password
+                });
+
+                if (error) throw error;
+
+                let html = '<h2>✅ User Created Successfully!</h2>';
+                html += '<div class="status success">';
+                html += `<p><strong>Your User ID:</strong> <code>${data.user.id}</code></p>`;
+                html += '<p><strong>Email:</strong> ' + data.user.email + '</p>';
+                html += '</div>';
+
+                html += '<div class="status info">';
+                html += '<p><strong>⚠️ Important:</strong> Check your email for verification link (if email confirmation is enabled).</p>';
+                html += '</div>';
+
+                html += '<h3>Next Steps:</h3>';
+                html += '<div class="status info">';
+                html += '<ol>';
+                html += '<li>Copy your User ID above</li>';
+                html += '<li>Open <code>supabase/migrations/002_seed_data.sql</code></li>';
+                html += `<li>Replace all instances of <code>YOUR_USER_ID_HERE</code> with <code>${data.user.id}</code></li>`;
+                html += '<li>Go to <a href="https://supabase.com/dashboard/project/cymticrjzidywukflwtv/editor" target="_blank">Supabase SQL Editor</a></li>';
+                html += '<li>Run the updated <code>002_seed_data.sql</code></li>';
+                html += '</ol>';
+                html += '</div>';
+
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+
+                if (error.message.includes('User already registered')) {
+                    resultsDiv.innerHTML += '<div class="status info">ℹ️ This user already exists. Try logging in instead.</div>';
+                }
+            }
+        };
+
+        window.login = async function() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultsDiv = document.getElementById('results');
+
+            resultsDiv.innerHTML = '<div class="status info">Logging in...</div>';
+
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+                if (error) throw error;
+
+                let html = '<h2>✅ Logged In Successfully!</h2>';
+                html += '<div class="status success">';
+                html += `<p><strong>Your User ID:</strong> <code>${data.user.id}</code></p>`;
+                html += '<p><strong>Email:</strong> ' + data.user.email + '</p>';
+                html += '</div>';
+
+                html += '<h3>Next Steps:</h3>';
+                html += '<div class="status info">';
+                html += '<ol>';
+                html += '<li>Copy your User ID above</li>';
+                html += '<li>Open <code>supabase/migrations/002_seed_data.sql</code></li>';
+                html += `<li>Replace all instances of <code>YOUR_USER_ID_HERE</code> with <code>${data.user.id}</code></li>`;
+                html += '<li>Go to <a href="https://supabase.com/dashboard/project/cymticrjzidywukflwtv/editor" target="_blank">Supabase SQL Editor</a></li>';
+                html += '<li>Run the updated <code>002_seed_data.sql</code></li>';
+                html += '</ol>';
+                html += '</div>';
+
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+
+                if (error.message.includes('Invalid login credentials')) {
+                    resultsDiv.innerHTML += '<div class="status info">ℹ️ Invalid credentials. Try signing up first if you haven\'t created an account.</div>';
+                }
+            }
+        };
+    </script>
+</body>
+</html>

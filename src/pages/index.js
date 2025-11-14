@@ -8,3 +8,7 @@ export { default as UsersPage } from './UsersPage';
 export { default as FAQsPage } from './FAQsPage';
 export { default as ReferPage } from './ReferPage';
 export { default as SetupPage } from './SetupPage';
+export { default as SettingsPage } from './SettingsPage';
+export { LoginPage } from './LoginPage';
+export { ForgotPasswordPage } from './ForgotPasswordPage';
+export { ResetPasswordPage } from './ResetPasswordPage';

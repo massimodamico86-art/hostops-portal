@@ -20,11 +20,10 @@ import { GuestListTab } from './GuestListTab';
 import ImageUploadButton from '../ImageUploadButton';
 import ScaledStage from '../../ScaledStage';
 import { Layout1, Layout2, Layout3, Layout4 } from '../../layouts';
-import { getConfig, fetchDeviceConfig } from '../../getConfig';
 import { getWeather } from '../../services/weatherService';
+import { getActiveGuestForLayout } from '../../utils/guestHelpers';
 export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, listings }) => {
   const [formData, setFormData] = useState({ ...listing });
-  const [renderKey, setRenderKey] = useState(0);
   const [activeTab, setActiveTab] = useState('display');
   const [previewListing, setPreviewListing] = useState(null);
   const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
@@ -34,28 +33,8 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
   const [uploadTarget, setUploadTarget] = useState({ type: null, index: null }); // Track what's being uploaded
   const [backgroundMode, setBackgroundMode] = useState(listing.backgroundVideo ? 'video' : 'image'); // Track image/video mode
 
-  // TV Preview state
-  const [tvConfig, setTvConfig] = useState(null);
-  const [loadingPreview, setLoadingPreview] = useState(true);
-  const [error, setError] = useState(null);
-
   // Weather data state
   const [weatherData, setWeatherData] = useState(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoadingPreview(true);
-        setError(null);
-        const cfg = await fetchDeviceConfig();
-        setTvConfig(cfg);
-      } catch (err) {
-        setError(err);
-      } finally {
-        setLoadingPreview(false);
-      }
-    })();
-  }, []);
 
   // Fetch weather data when city or unit changes
   useEffect(() => {
@@ -76,26 +55,10 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
     }
   }, [formData.weatherCity, formData.weatherUnit, formData.showWeather]);
 
-  const renderLayout = (cfg) => {
-    switch (cfg?.layout?.layout_key) {
-      case "layout1": return <Layout1 layout={cfg.layout} guest={cfg.guest} />;
-      case "layout2": return <Layout2 layout={cfg.layout} guest={cfg.guest} />;
-      case "layout3": return <Layout3 layout={cfg.layout} guest={cfg.guest} />;
-      case "layout4": return <Layout4 layout={cfg.layout} guest={cfg.guest} />;
-      default:        return <Layout1 layout={cfg.layout} guest={cfg.guest} />;
-    }
-  };
-  
   // Update formData and trigger re-render
   const updateFormData = (newData) => {
     setFormData(newData);
-    setRenderKey(prev => prev + 1);
   };
-  
-  // Trigger re-render when formData changes
-  useEffect(() => {
-    setRenderKey(prev => prev + 1);
-  }, [formData]);
 
   const handleSave = () => {
     onSave(formData);
@@ -238,7 +201,7 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
               </div>
 
               {/* Layout Selection Section - COMPLETE REPLACEMENT */}
-<div className="border-b pb-6 -mx-6 px-6" key={renderKey}>
+<div className="border-b pb-6 -mx-6 px-6">
   <h3 className="font-semibold mb-4">Choose TV Layout</h3>
   <div className="relative">
     <div className="overflow-x-auto overflow-y-visible pb-2 snap-x snap-mandatory" style={{ scrollBehavior: 'smooth' }}>
@@ -286,29 +249,8 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
                     logo: formData.logo
                   };
 
-                  // Get active guest (same logic as TVPreviewModal)
-                  const getActiveGuest = () => {
-                    if (!formData.guestList || formData.guestList.length === 0) return null;
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    return formData.guestList.find(guest => {
-                      try {
-                        const checkIn = new Date(guest.checkIn);
-                        const checkOut = new Date(guest.checkOut);
-                        checkIn.setHours(0, 0, 0, 0);
-                        checkOut.setHours(0, 0, 0, 0);
-                        return today >= checkIn && today <= checkOut;
-                      } catch {
-                        return false;
-                      }
-                    });
-                  };
-
-                  const activeGuest = getActiveGuest();
-                  const guestData = activeGuest ? {
-                    guest_first: activeGuest.firstName,
-                    guest_last: activeGuest.lastName
-                  } : null;
+                  // Get active guest using utility function
+                  const guestData = getActiveGuestForLayout(formData.guestList);
 
                   // Render the appropriate layout component
                   switch(layout.id) {
@@ -379,7 +321,7 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
               </div>
 
               {/* Manage TVs */}
-              <TVDeviceManagement formData={formData} setFormData={setFormData} />
+              <TVDeviceManagement formData={formData} setFormData={setFormData} showToast={showToast} />
 
               {/* Welcome message */}
               <WelcomeMessageForm formData={formData} setFormData={setFormData} />
@@ -407,7 +349,7 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
 
               {/* Weather settings and Branding */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="border rounded-lg p-4">
+                <div className={`border rounded-lg p-4 transition-opacity ${!formData.showWeather ? 'opacity-50 bg-gray-50' : ''}`}>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold">Weather settings</h3>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -460,7 +402,7 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
                   </div>
                 </div>
 
-                <div className="border rounded-lg p-4">
+                <div className={`border rounded-lg p-4 transition-opacity ${!formData.showLogo ? 'opacity-50 bg-gray-50' : ''}`}>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold">Branding</h3>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -555,7 +497,7 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
                   </select>
                 </div>
 
-                <div className="border rounded-lg p-4">
+                <div className={`border rounded-lg p-4 transition-opacity ${!formData.showCheckInOut ? 'opacity-50 bg-gray-50' : ''}`}>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold">Check in & check out</h3>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -609,7 +551,7 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
               </div>
 
               {/* Hours of operation - Full width */}
-              <div className="border rounded-lg p-4">
+              <div className={`border rounded-lg p-4 transition-opacity ${!formData.showHoursOfOperation ? 'opacity-50 bg-gray-50' : ''}`}>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold">Hours of operation</h3>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -663,7 +605,7 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
 
               {/* WiFi details and Contact information */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="border rounded-lg p-4">
+                <div className={`border rounded-lg p-4 transition-opacity ${!formData.showWifi ? 'opacity-50 bg-gray-50' : ''}`}>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold">WiFi details</h3>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -715,7 +657,7 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
                   </div>
                 </div>
 
-                <div className="border rounded-lg p-4">
+                <div className={`border rounded-lg p-4 transition-opacity ${!formData.showContact ? 'opacity-50 bg-gray-50' : ''}`}>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold">Contact information</h3>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -769,7 +711,7 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
               </div>
 
               {/* QR codes - Full width with table */}
-              <QRCodeManager formData={formData} setFormData={setFormData} />
+              <QRCodeManager formData={formData} setFormData={setFormData} showToast={showToast} />
 
               {/* Upcoming events info */}
               <div className="border rounded-lg p-4 bg-gray-50">
@@ -787,25 +729,67 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
                 </div>
               </div>
 
-              {/* TV Preview Card */}
+              {/* TV Preview Card - Real-time Preview */}
               <div className="mt-6 rounded-2xl border border-black/10 bg-white dark:bg-zinc-900 shadow-xl">
                 <div className="px-5 py-4 text-sm font-medium">
-                  TV Preview — {tvConfig?.propertyName || "Property"} ({tvConfig?.layout_key || "layout1"})
+                  TV Preview — {formData.name} ({formData.tvLayout || "layout1"})
                 </div>
                 <div className="px-5 pb-5">
                   <div className="relative w-full max-w-[1200px] mx-auto rounded-xl overflow-hidden bg-black">
                     <div className="relative w-full pb-[56.25%]">
                       <div className="absolute inset-0">
-                        {loadingPreview && (
-                          <div className="w-full h-full grid place-items-center text-white/70">
-                            Loading preview…
-                          </div>
-                        )}
-                        {!loadingPreview && !error && tvConfig && (
-                          <ScaledStage fullScreen={false} baseWidth={1920} baseHeight={1080}>
-                            {renderLayout(tvConfig)}
-                          </ScaledStage>
-                        )}
+                        <ScaledStage fullScreen={false} baseWidth={1920} baseHeight={1080}>
+                          {(() => {
+                            // Format listing data to match layout prop structure
+                            const layoutData = {
+                              backgroundImage: formData.backgroundImage,
+                              backgroundVideo: formData.backgroundVideo,
+                              propertyName: formData.name,
+                              showWelcomeMessage: formData.showWelcomeMessage,
+                              welcomeGreeting: formData.welcomeGreeting,
+                              welcomeMessage: formData.welcomeMessage,
+                              showCheckInOut: formData.showCheckInOut,
+                              standardCheckInTime: formData.standardCheckInTime,
+                              standardCheckOutTime: formData.standardCheckOutTime,
+                              showContact: formData.showContact,
+                              contactPhone: formData.contactPhone,
+                              contactEmail: formData.contactEmail,
+                              showWifi: formData.showWifi,
+                              wifiNetwork: formData.wifiNetwork,
+                              wifiPassword: formData.wifiPassword,
+                              showQRCodes: formData.showQRCodes,
+                              qrCodes: formData.qrCodes || [],
+                              showWeather: formData.showWeather,
+                              weatherCity: formData.weatherCity,
+                              weatherTemp: weatherData?.tempFormatted,
+                              weatherDescription: weatherData?.description,
+                              weatherIcon: weatherData?.iconUrl,
+                              websiteUrl: formData.websiteUrl,
+                              showHoursOfOperation: formData.showHoursOfOperation,
+                              hoursOfOperationFrom: formData.hoursOfOperationFrom,
+                              hoursOfOperationTo: formData.hoursOfOperationTo,
+                              showLogo: formData.showLogo,
+                              logo: formData.logo
+                            };
+
+                            // Get active guest using utility function
+                            const guestData = getActiveGuestForLayout(formData.guestList);
+
+                            // Render the selected layout
+                            switch(formData.tvLayout) {
+                              case 'layout1':
+                                return <Layout1 layout={layoutData} guest={guestData} />;
+                              case 'layout2':
+                                return <Layout2 layout={layoutData} guest={guestData} />;
+                              case 'layout3':
+                                return <Layout3 layout={layoutData} guest={guestData} />;
+                              case 'layout4':
+                                return <Layout4 layout={layoutData} guest={guestData} />;
+                              default:
+                                return <Layout1 layout={layoutData} guest={guestData} />;
+                            }
+                          })()}
+                        </ScaledStage>
                       </div>
                     </div>
                   </div>

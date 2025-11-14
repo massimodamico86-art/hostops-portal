@@ -1,11 +1,17 @@
-import { useState } from 'react';
-import { Plus, Search, Calendar, UserPlus, Upload, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Search, Calendar, UserPlus, Upload, RefreshCw, Download } from 'lucide-react';
 import Button from '../Button';
 import { AddGuestModal } from './AddGuestModal';
 import { AddICalModal } from './AddICalModal';
+import { supabase } from '../../supabase';
+import { importICalToGuests } from '../../services/icalService';
+import { downloadGuestsCSV } from '../../services/exportService';
+import { useDebounce } from '../../hooks/useDebounce';
 
 export const GuestListTab = ({ formData, setFormData, showToast }) => {
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300); // Debounce search by 300ms
   const [sortField, setSortField] = useState('checkIn');
   const [sortDirection, setSortDirection] = useState('asc');
   const [showAddGuestModal, setShowAddGuestModal] = useState(false);
@@ -14,9 +20,109 @@ export const GuestListTab = ({ formData, setFormData, showToast }) => {
 
   const guests = formData.guestList || [];
 
-  // Filter guests based on search query
+  // Fetch guests from Supabase on mount and subscribe to real-time changes
+  useEffect(() => {
+    if (!formData.id) return;
+
+    const fetchGuests = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('guests')
+          .select('*')
+          .eq('listing_id', formData.id)
+          .order('check_in', { ascending: true });
+
+        if (error) throw error;
+
+        // Convert snake_case to camelCase for frontend
+        const guestsData = (data || []).map(guest => ({
+          id: guest.id,
+          firstName: guest.first_name,
+          lastName: guest.last_name,
+          email: guest.email,
+          checkIn: guest.check_in,
+          checkOut: guest.check_out,
+          language: guest.language
+        }));
+
+        setFormData({
+          ...formData,
+          guestList: guestsData
+        });
+      } catch (error) {
+        console.error('Error fetching guests:', error);
+        showToast('Error loading guests: ' + error.message, 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGuests();
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel(`guests-${formData.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'guests',
+          filter: `listing_id=eq.${formData.id}`
+        },
+        (payload) => {
+          console.log('Guest change received:', payload);
+
+          if (payload.eventType === 'INSERT') {
+            const newGuest = {
+              id: payload.new.id,
+              firstName: payload.new.first_name,
+              lastName: payload.new.last_name,
+              email: payload.new.email,
+              checkIn: payload.new.check_in,
+              checkOut: payload.new.check_out,
+              language: payload.new.language
+            };
+            setFormData(prev => ({
+              ...prev,
+              guestList: [...(prev.guestList || []), newGuest]
+            }));
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedGuest = {
+              id: payload.new.id,
+              firstName: payload.new.first_name,
+              lastName: payload.new.last_name,
+              email: payload.new.email,
+              checkIn: payload.new.check_in,
+              checkOut: payload.new.check_out,
+              language: payload.new.language
+            };
+            setFormData(prev => ({
+              ...prev,
+              guestList: (prev.guestList || []).map(g =>
+                g.id === updatedGuest.id ? updatedGuest : g
+              )
+            }));
+          } else if (payload.eventType === 'DELETE') {
+            setFormData(prev => ({
+              ...prev,
+              guestList: (prev.guestList || []).filter(g => g.id !== payload.old.id)
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [formData.id]);
+
+  // Filter guests based on debounced search query
   const filteredGuests = guests.filter(guest => {
-    const searchLower = searchQuery.toLowerCase();
+    const searchLower = debouncedSearchQuery.toLowerCase();
     const fullName = `${guest.firstName} ${guest.lastName}`.toLowerCase();
     return fullName.includes(searchLower) ||
            guest.email?.toLowerCase().includes(searchLower);
@@ -53,48 +159,131 @@ export const GuestListTab = ({ formData, setFormData, showToast }) => {
   };
 
   // Handle add guest
-  const handleAddGuest = (guestData) => {
-    const newGuest = {
-      id: Date.now().toString(),
-      ...guestData
-    };
-    setFormData({
-      ...formData,
-      guestList: [...guests, newGuest]
-    });
-    showToast('Guest added successfully!');
-    setShowAddGuestModal(false);
+  const handleAddGuest = async (guestData) => {
+    try {
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('guests')
+        .insert([{
+          listing_id: formData.id,
+          first_name: guestData.firstName,
+          last_name: guestData.lastName,
+          email: guestData.email,
+          check_in: guestData.checkIn,
+          check_out: guestData.checkOut,
+          language: guestData.language
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Convert back to camelCase and update local state
+      const newGuest = {
+        id: data.id,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        email: data.email,
+        checkIn: data.check_in,
+        checkOut: data.check_out,
+        language: data.language
+      };
+
+      setFormData({
+        ...formData,
+        guestList: [...guests, newGuest]
+      });
+      showToast('Guest added successfully!');
+      setShowAddGuestModal(false);
+    } catch (error) {
+      console.error('Error adding guest:', error);
+      showToast('Error adding guest: ' + error.message, 'error');
+    }
   };
 
   // Handle edit guest
-  const handleEditGuest = (guestData) => {
-    const updatedGuests = guests.map(g =>
-      g.id === editingGuest.id ? { ...g, ...guestData } : g
-    );
-    setFormData({
-      ...formData,
-      guestList: updatedGuests
-    });
-    showToast('Guest updated successfully!');
-    setEditingGuest(null);
+  const handleEditGuest = async (guestData) => {
+    try {
+      // Update in Supabase
+      const { error } = await supabase
+        .from('guests')
+        .update({
+          first_name: guestData.firstName,
+          last_name: guestData.lastName,
+          email: guestData.email,
+          check_in: guestData.checkIn,
+          check_out: guestData.checkOut,
+          language: guestData.language,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingGuest.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedGuests = guests.map(g =>
+        g.id === editingGuest.id ? { ...g, ...guestData } : g
+      );
+      setFormData({
+        ...formData,
+        guestList: updatedGuests
+      });
+      showToast('Guest updated successfully!');
+      setEditingGuest(null);
+    } catch (error) {
+      console.error('Error updating guest:', error);
+      showToast('Error updating guest: ' + error.message, 'error');
+    }
   };
 
   // Handle delete guest
-  const handleDeleteGuest = (guestId) => {
-    if (window.confirm('Are you sure you want to delete this guest?')) {
+  const handleDeleteGuest = async (guestId) => {
+    if (!window.confirm('Are you sure you want to delete this guest?')) {
+      return;
+    }
+
+    try {
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('guests')
+        .delete()
+        .eq('id', guestId);
+
+      if (error) throw error;
+
+      // Update local state
       setFormData({
         ...formData,
         guestList: guests.filter(g => g.id !== guestId)
       });
       showToast('Guest deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting guest:', error);
+      showToast('Error deleting guest: ' + error.message, 'error');
     }
   };
 
   // Handle iCal import
-  const handleICalImport = (url) => {
-    // TODO: Implement actual iCal parsing
-    showToast('iCal import feature coming soon!');
-    setShowAddICalModal(false);
+  const handleICalImport = async (url) => {
+    try {
+      setLoading(true);
+      showToast('Importing reservations from iCal...');
+
+      const result = await importICalToGuests(url, formData.id, supabase);
+
+      showToast(result.message);
+
+      if (result.errors.length > 0) {
+        console.error('iCal import errors:', result.errors);
+      }
+
+      setShowAddICalModal(false);
+    } catch (error) {
+      console.error('Error importing iCal:', error);
+      showToast(`Error importing iCal: ${error.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle PMS sync
@@ -171,6 +360,22 @@ export const GuestListTab = ({ formData, setFormData, showToast }) => {
 
         {/* Action Buttons */}
         <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              try {
+                downloadGuestsCSV(guests);
+                showToast(`Exported ${guests.length} guest(s) to CSV`);
+              } catch (error) {
+                showToast('Error exporting guests: ' + error.message, 'error');
+              }
+            }}
+            disabled={guests.length === 0}
+          >
+            <Download size={16} />
+            Export
+          </Button>
           <Button
             size="sm"
             variant="outline"

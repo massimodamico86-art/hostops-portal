@@ -1,14 +1,79 @@
-import { useState } from 'react';
-import { Filter, Building2, Users, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Filter, Building2, Users, Star, Tv, Calendar } from 'lucide-react';
+import { supabase } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Badge from '../components/Badge';
 import StatCard from '../components/StatCard';
 import DateRangeModal from '../components/DateRangeModal';
+import OptimizedImage from '../components/OptimizedImage';
 
 const DashboardPage = ({ setCurrentPage, showToast, listings }) => {
+  const { user } = useAuth();
   const [showDateModal, setShowDateModal] = useState(false);
   const [dateRange, setDateRange] = useState('30');
+  const [analytics, setAnalytics] = useState({
+    totalTVs: 0,
+    onlineTVs: 0,
+    upcomingCheckIns: 0,
+    currentGuests: 0
+  });
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      if (!user || listings.length === 0) return;
+
+      try {
+        const listingIds = listings.map(l => l.id);
+
+        // Fetch TV devices count
+        const { data: tvDevices, error: tvError } = await supabase
+          .from('tv_devices')
+          .select('id, is_online')
+          .in('listing_id', listingIds);
+
+        if (tvError) throw tvError;
+
+        // Fetch guests data
+        const today = new Date().toISOString().split('T')[0];
+        const { data: guests, error: guestsError } = await supabase
+          .from('guests')
+          .select('id, check_in, check_out')
+          .in('listing_id', listingIds);
+
+        if (guestsError) throw guestsError;
+
+        // Calculate analytics
+        const totalTVs = tvDevices?.length || 0;
+        const onlineTVs = tvDevices?.filter(tv => tv.is_online).length || 0;
+
+        // Current guests (check-in <= today AND check-out >= today)
+        const currentGuests = guests?.filter(g =>
+          g.check_in <= today && g.check_out >= today
+        ).length || 0;
+
+        // Upcoming check-ins (check-in > today AND check-in within next 7 days)
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        const nextWeekStr = nextWeek.toISOString().split('T')[0];
+        const upcomingCheckIns = guests?.filter(g =>
+          g.check_in > today && g.check_in <= nextWeekStr
+        ).length || 0;
+
+        setAnalytics({
+          totalTVs,
+          onlineTVs,
+          upcomingCheckIns,
+          currentGuests
+        });
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      }
+    };
+
+    fetchAnalytics();
+  }, [user, listings]);
 
   const handleDateRangeApply = (range) => {
     setDateRange(range);
@@ -28,9 +93,31 @@ const DashboardPage = ({ setCurrentPage, showToast, listings }) => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <StatCard title="Active Listings" value={listings.length} icon={Building2} trend={5} />
-        <StatCard title="Total Guests" value={listings.reduce((sum, l) => sum + (l.guestList || []).length, 0)} icon={Users} subtitle="Across all listings" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Active Listings"
+          value={listings.filter(l => l.active).length}
+          icon={Building2}
+          subtitle={`${listings.length} total`}
+        />
+        <StatCard
+          title="Current Guests"
+          value={analytics.currentGuests}
+          icon={Users}
+          subtitle="Staying now"
+        />
+        <StatCard
+          title="Upcoming Check-ins"
+          value={analytics.upcomingCheckIns}
+          icon={Calendar}
+          subtitle="Next 7 days"
+        />
+        <StatCard
+          title="TV Devices"
+          value={`${analytics.onlineTVs}/${analytics.totalTVs}`}
+          icon={Tv}
+          subtitle="Online"
+        />
       </div>
 
       <Card className="p-6">
@@ -38,7 +125,7 @@ const DashboardPage = ({ setCurrentPage, showToast, listings }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {listings.map(listing => (
             <div key={listing.id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-              <img src={listing.image} alt={listing.name} className="w-full h-48 object-cover" />
+              <OptimizedImage src={listing.image} alt={listing.name} className="w-full h-48" />
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-semibold">{listing.name}</h3>

@@ -8,15 +8,15 @@ const Button = ({ children, onClick, variant = 'primary', size = 'md', className
     danger: 'bg-red-500 text-white hover:bg-red-600'
   };
   const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2',
+    sm: 'px-2 py-1.5 text-xs sm:px-3 sm:text-sm',
+    md: 'px-3 py-2 text-sm sm:px-4 sm:text-base',
   };
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`${variants[variant]} ${sizes[size]} rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed ${className}`}
+      className={`${variants[variant]} ${sizes[size]} rounded-lg font-medium transition-colors flex items-center justify-center gap-1 sm:gap-2 disabled:cursor-not-allowed touch-manipulation ${className}`}
     >
       {children}
     </button>

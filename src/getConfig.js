@@ -2,12 +2,12 @@
 import { supabase } from "./supabase";
 import { getWeather } from "./services/weatherService";
 
-export async function getConfig(token) {
-  if (!token) {
-    throw new Error("Missing device token");
+export async function getConfig(otp) {
+  if (!otp) {
+    throw new Error("Missing OTP code");
   }
 
-  const { data, error } = await supabase.rpc("get_device_config", { p_token: token });
+  const { data, error } = await supabase.rpc("get_device_config", { p_otp: otp });
 
   if (error) throw error;
   if (!data) throw new Error("No configuration returned");

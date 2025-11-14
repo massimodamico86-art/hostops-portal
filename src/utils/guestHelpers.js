@@ -21,6 +21,34 @@ export const getActiveGuest = (guestList = []) => {
 };
 
 /**
+ * Format guest data for layout components
+ * @param {Object|null} guest - Guest object with firstName/first_name and lastName/last_name
+ * @returns {Object|null} Formatted guest data with guest_first and guest_last or null
+ */
+export const formatGuestData = (guest) => {
+  if (!guest) return null;
+
+  // Support both camelCase and snake_case property names
+  const firstName = guest.firstName || guest.first_name || guest.guest_first || '';
+  const lastName = guest.lastName || guest.last_name || guest.guest_last || '';
+
+  return {
+    guest_first: firstName,
+    guest_last: lastName
+  };
+};
+
+/**
+ * Get active guest formatted for layout components
+ * @param {Array} guestList - Array of guest objects
+ * @returns {Object|null} Formatted guest data or null
+ */
+export const getActiveGuestForLayout = (guestList) => {
+  const activeGuest = getActiveGuest(guestList);
+  return formatGuestData(activeGuest);
+};
+
+/**
  * Replace guest placeholders in text with actual guest data
  * @param {string} text - Text containing placeholders like {{first-name}}, {{last-name}}
  * @param {Object|null} guest - Guest object with firstName/first_name and lastName/last_name
