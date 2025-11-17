@@ -45,6 +45,8 @@ export const AuthProvider = ({ children }) => {
     // Add timeout in case getSession hangs
     const timeout = setTimeout(() => {
       console.warn('⏱️ AuthContext: Session check timed out, proceeding without session');
+      setUser(null);
+      setUserProfile(null);
       setLoading(false);
     }, 5000); // 5 second timeout
 
