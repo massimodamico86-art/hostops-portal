@@ -25,11 +25,20 @@ export const AuthProvider = ({ children }) => {
 
     try {
       console.log('🔍 Fetching profile for user:', userId);
-      const { data, error} = await supabase
+      console.log('🔍 Supabase client:', supabase);
+      console.log('🔍 Building query...');
+
+      const query = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
+
+      console.log('🔍 Query built, executing...');
+      const result = await query;
+      console.log('🔍 Query completed, result:', result);
+
+      const { data, error } = result;
 
       if (error) {
         console.error('❌ Profile fetch error:', error);
