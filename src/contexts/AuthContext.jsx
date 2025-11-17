@@ -41,7 +41,15 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Check active session
     console.log('🔄 AuthContext: Checking session...');
+
+    // Add timeout in case getSession hangs
+    const timeout = setTimeout(() => {
+      console.warn('⏱️ AuthContext: Session check timed out, proceeding without session');
+      setLoading(false);
+    }, 5000); // 5 second timeout
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      clearTimeout(timeout);
       console.log('✅ AuthContext: Session retrieved', { hasSession: !!session });
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -49,6 +57,7 @@ export const AuthProvider = ({ children }) => {
       }
       setLoading(false);
     }).catch((error) => {
+      clearTimeout(timeout);
       console.error('❌ AuthContext: Session error', error);
       setLoading(false);
     });
