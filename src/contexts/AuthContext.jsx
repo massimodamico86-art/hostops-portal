@@ -39,33 +39,46 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Check active session
-    console.log('🔄 AuthContext: Checking session...');
+    console.log('🔄 AuthContext: Initializing auth...');
 
-    // Add timeout in case getSession hangs
-    const timeout = setTimeout(() => {
-      console.warn('⏱️ AuthContext: Session check timed out, proceeding without session');
-      setUser(null);
-      setUserProfile(null);
-      setLoading(false);
-    }, 5000); // 5 second timeout
+    let mounted = true;
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      clearTimeout(timeout);
-      console.log('✅ AuthContext: Session retrieved', { hasSession: !!session });
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchUserProfile(session.user.id);
+    // Initialize auth state
+    const initAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error('❌ AuthContext: Session error', error);
+        } else {
+          console.log('✅ AuthContext: Session retrieved', { hasSession: !!session });
+        }
+
+        if (!mounted) return;
+
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        }
+      } catch (error) {
+        console.error('❌ AuthContext: Init error', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
-    }).catch((error) => {
-      clearTimeout(timeout);
-      console.error('❌ AuthContext: Session error', error);
-      setLoading(false);
-    });
+    };
+
+    initAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log('🔔 Auth state changed:', _event, { hasSession: !!session });
+
+      if (!mounted) return;
+
       setUser(session?.user ?? null);
       if (session?.user) {
         await fetchUserProfile(session.user.id);
@@ -74,7 +87,10 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email, password, fullName) => {
