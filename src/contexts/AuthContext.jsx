@@ -40,11 +40,16 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check active session
+    console.log('🔄 AuthContext: Checking session...');
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('✅ AuthContext: Session retrieved', { hasSession: !!session });
       setUser(session?.user ?? null);
       if (session?.user) {
         await fetchUserProfile(session.user.id);
       }
+      setLoading(false);
+    }).catch((error) => {
+      console.error('❌ AuthContext: Session error', error);
       setLoading(false);
     });
 
