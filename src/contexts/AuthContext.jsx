@@ -25,42 +25,25 @@ export const AuthProvider = ({ children }) => {
 
     try {
       console.log('🔍 Fetching profile for user:', userId);
+      const { data, error} = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-      // Create abort controller for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single()
-          .abortSignal(controller.signal);
-
-        clearTimeout(timeoutId);
-
-        if (error) {
-          console.error('❌ Profile fetch error:', error);
-          console.error('Error details:', {
-            message: error.message,
-            code: error.code,
-            details: error.details,
-            hint: error.hint
-          });
-          throw error;
-        }
-
-        console.log('✅ Profile fetched successfully:', data);
-        setUserProfile(data);
-      } catch (err) {
-        clearTimeout(timeoutId);
-        if (err.name === 'AbortError') {
-          console.error('❌ Profile fetch timeout after 10 seconds');
-          throw new Error('Profile fetch timeout');
-        }
-        throw err;
+      if (error) {
+        console.error('❌ Profile fetch error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
       }
+
+      console.log('✅ Profile fetched successfully:', data);
+      setUserProfile(data);
     } catch (error) {
       console.error('❌ Error fetching user profile:', error);
       setUserProfile(null);
