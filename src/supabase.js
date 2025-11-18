@@ -21,4 +21,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: 'pkce'
   }
 });
+
+// TEMPORARY: Expose for debugging
+if (typeof window !== 'undefined') {
+  window.supabase = supabase;
+}
+
 // Force redeploy Tue Nov 18 15:10:14 EST 2025
