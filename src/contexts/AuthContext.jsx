@@ -25,20 +25,20 @@ export const AuthProvider = ({ children }) => {
 
     try {
       console.log('🔍 Fetching profile for user:', userId);
-      console.log('🔍 Supabase client:', supabase);
-      console.log('🔍 Building query...');
 
-      const query = supabase
+      const queryPromise = supabase
         .from('profiles')
-        .select('*')
+        .select('id, email, full_name, role, managed_by, created_at')
         .eq('id', userId)
         .single();
 
-      console.log('🔍 Query built, executing...');
-      const result = await query;
-      console.log('🔍 Query completed, result:', result);
+      // 10s timeout so we never hang forever
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile fetch timeout after 10 seconds')), 10000)
+      );
 
-      const { data, error } = result;
+      console.log('🔍 Query built, executing with 10s timeout...');
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
       if (error) {
         console.error('❌ Profile fetch error:', error);
@@ -53,9 +53,12 @@ export const AuthProvider = ({ children }) => {
 
       console.log('✅ Profile fetched successfully:', data);
       setUserProfile(data);
-    } catch (error) {
-      console.error('❌ Error fetching user profile:', error);
+    } catch (err) {
+      console.error('❌ Error fetching user profile:', err);
+      console.error('Full error object:', err);
       setUserProfile(null);
+      // Show visible error instead of infinite spinner
+      alert(`Unable to load profile: ${err.message || 'Unknown error'}. Check browser console for details.`);
     }
   };
 
