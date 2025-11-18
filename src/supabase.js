@@ -21,3 +21,4 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: 'pkce'
   }
 });
+// Force redeploy Tue Nov 18 15:10:14 EST 2025
