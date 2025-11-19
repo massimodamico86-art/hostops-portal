@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Filter, Building2, Users, Star, Tv, Calendar } from 'lucide-react';
+import { Filter, Building2, Users, Star, Tv, Calendar, Plus } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/Button';
@@ -8,10 +8,12 @@ import Badge from '../components/Badge';
 import StatCard from '../components/StatCard';
 import DateRangeModal from '../components/DateRangeModal';
 import OptimizedImage from '../components/OptimizedImage';
+import { AddListingModal } from '../components/listings/AddListingModal';
 
-const DashboardPage = ({ setCurrentPage, showToast, listings }) => {
+const DashboardPage = ({ setCurrentPage, showToast, listings, setListings }) => {
   const { user } = useAuth();
   const [showDateModal, setShowDateModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [dateRange, setDateRange] = useState('30');
   const [analytics, setAnalytics] = useState({
     totalTVs: 0,
@@ -80,6 +82,70 @@ const DashboardPage = ({ setCurrentPage, showToast, listings }) => {
     showToast(`Date range updated to last ${range} days`);
   };
 
+  const handleAddListing = async (newListingData) => {
+    try {
+      // Insert into Supabase with all default values
+      const { data, error } = await supabase
+        .from('listings')
+        .insert([{
+          owner_id: user.id,
+          name: newListingData.name,
+          description: newListingData.description || '',
+          address: newListingData.address,
+          image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
+          active: true,
+          bedrooms: newListingData.bedrooms || 1,
+          bathrooms: newListingData.bathrooms || 1,
+          guests: newListingData.guests || 2,
+          price: 0,
+          rating: 5.0,
+          reviews: 0,
+          tvs: newListingData.tvs || 1,
+          amenities: [],
+          carousel_images: [],
+          background_image: null,
+          background_video: null,
+          background_music: null,
+          tv_layout: 1,
+          language: 'en',
+          wifi_network: '',
+          wifi_password: '',
+          contact_phone: '',
+          contact_email: '',
+          welcome_greeting: '',
+          welcome_message: '',
+          weather_city: '',
+          weather_unit: 'F',
+          website_url: '',
+          show_check_in_out: true,
+          standard_check_in_time: '3:00 PM',
+          standard_check_out_time: '11:00 AM',
+          show_hours_of_operation: false,
+          hours_of_operation_from: '',
+          hours_of_operation_to: '',
+          show_wifi: true,
+          show_contact: true,
+          show_weather: false,
+          show_qr_codes: false,
+          show_logo: false,
+          logo: null,
+          show_welcome_message: true,
+          tours_link: ''
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      setListings([data, ...listings]);
+      showToast('Listing created successfully!');
+    } catch (error) {
+      console.error('Error adding listing:', error);
+      throw error;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -87,10 +153,16 @@ const DashboardPage = ({ setCurrentPage, showToast, listings }) => {
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-gray-600">Welcome back! Here's your property overview</p>
         </div>
-        <Button onClick={() => setShowDateModal(true)}>
-          <Filter size={18} />
-          Last {dateRange} days
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowAddModal(true)}>
+            <Plus size={18} />
+            Add Listing
+          </Button>
+          <Button variant="outline" onClick={() => setShowDateModal(true)}>
+            <Filter size={18} />
+            Last {dateRange} days
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -156,6 +228,14 @@ const DashboardPage = ({ setCurrentPage, showToast, listings }) => {
         onClose={() => setShowDateModal(false)}
         onApply={handleDateRangeApply}
       />
+
+      {showAddModal && (
+        <AddListingModal
+          onClose={() => setShowAddModal(false)}
+          onAdd={handleAddListing}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 };

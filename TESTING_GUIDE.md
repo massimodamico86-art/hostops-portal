@@ -1,4 +1,300 @@
-# HostOps Portal - Testing & Review Guide
+# HostOps Portal - Testing Guide
+
+## 🧪 Test User Accounts
+
+### Test Credentials
+
+**Super Admin Account** (Already exists)
+```
+Email: mvproperties305@gmail.com
+Password: [Your existing password]
+Role: super_admin
+```
+
+**Admin Account** (To be created)
+```
+Email: admin@hostops-test.com
+Password: TestAdmin123!
+Role: admin
+```
+
+**Client Account** (To be created)
+```
+Email: client@hostops-test.com
+Password: TestClient123!
+Role: client
+```
+
+---
+
+## 📋 Role Testing Checklist
+
+### 1. Super Admin Testing
+
+**Expected Access:**
+- ✅ SuperAdminDashboardPage
+- ✅ System-wide analytics
+- ✅ User management (create/edit/delete users)
+- ✅ View ALL listings across all clients
+- ✅ Full database access
+
+**Test Steps:**
+1. Log in with super_admin credentials
+2. Verify you see "Super Admin Dashboard" heading
+3. Check statistics: Total Users, Admins, Clients, Unassigned
+4. Verify you can access Users page
+5. Test creating new admin/client users
+6. Test viewing all listings in system
+7. Test editing any listing
+8. Test deleting users/listings
+
+---
+
+### 2. Admin Testing
+
+**Expected Access:**
+- ✅ AdminDashboardPage
+- ✅ View listings of their assigned clients only
+- ✅ Manage clients they are assigned to
+- ❌ Cannot see other admins' clients
+- ❌ Cannot create/delete users
+- ❌ Cannot access system-wide analytics
+
+**Test Steps:**
+1. Log in with admin credentials
+2. Verify you see "Admin Dashboard" heading
+3. Check you can only see listings where `owner.managed_by = admin_user_id`
+4. Test adding/editing listings for assigned clients
+5. Verify you CANNOT see unassigned listings
+6. Verify you CANNOT access Users page
+7. Test PMS integration for assigned clients
+
+**Setup Required:**
+- Create a test client user
+- Set client's `managed_by` field to admin's user ID
+- Create test listings owned by that client
+- Verify admin can see these listings
+
+---
+
+### 3. Client Testing
+
+**Expected Access:**
+- ✅ Client Dashboard (full navigation)
+- ✅ View/edit ONLY their own listings
+- ✅ Manage their own TV devices
+- ✅ Manage their own guests
+- ✅ Access guidebooks, monetize, PMS, subscription
+- ❌ Cannot see other clients' data
+- ❌ Cannot access Users page
+- ❌ Cannot create other users
+
+**Test Steps:**
+1. Log in with client credentials
+2. Verify you see full navigation sidebar
+3. Test Listings page - verify only your listings appear
+4. Test creating a new listing
+5. Test editing your listing
+6. Test TV device management
+7. Test guest list management
+8. Test PMS integration
+9. Test subscription page
+10. Verify you CANNOT see other clients' listings
+11. Verify you CANNOT access Users page
+
+---
+
+## 🔒 Security Testing
+
+### Row Level Security (After upgrading Supabase)
+
+**Test with RLS enabled:**
+1. Log in as Client A
+2. Attempt to query Client B's listings directly (via browser DevTools console):
+   ```javascript
+   // This should FAIL and return empty results
+   const { data, error } = await window.supabase
+     .from('listings')
+     .select('*')
+     .eq('owner_id', 'client-b-user-id');
+   ```
+3. Verify you get no results or permission denied error
+
+**Test admin isolation:**
+1. Create Admin A with Client A assigned
+2. Create Admin B with Client B assigned
+3. Log in as Admin A
+4. Verify Admin A cannot see Client B's listings
+5. Verify Admin A CAN see Client A's listings
+
+---
+
+## 🧩 Feature Testing
+
+### Listings Management
+- [ ] Create new listing
+- [ ] Edit listing details
+- [ ] Upload background images (Cloudinary)
+- [ ] Upload carousel images
+- [ ] Upload logo
+- [ ] Delete listing
+- [ ] Real-time updates (changes appear immediately)
+
+### TV Device Management
+- [ ] Add new TV device
+- [ ] Assign device to listing
+- [ ] Generate pairing code
+- [ ] Test QR code generation
+- [ ] Background video selection
+- [ ] Background music selection
+- [ ] Welcome message customization
+- [ ] Preview TV layouts (Layout 1-6)
+
+### Guest Management
+- [ ] Add guest manually
+- [ ] Import from iCal URL
+- [ ] Edit guest details
+- [ ] Delete guest
+- [ ] Search guests
+- [ ] Sort by check-in/check-out
+- [ ] Filter by current/past/upcoming
+
+### Weather Integration
+- [ ] Verify weather displays on TV previews
+- [ ] Check weather updates every 30 minutes
+- [ ] Test with different locations
+- [ ] Verify weather cache (30-min TTL)
+
+### PMS Integration
+- [ ] Connect Guesty account
+- [ ] Sync listings from PMS
+- [ ] Manual sync trigger
+- [ ] View sync status
+
+### Monetization
+- [ ] View revenue statistics
+- [ ] View experience listings
+- [ ] Test recommendation engine
+
+---
+
+## 🚀 Performance Testing
+
+### Load Times
+- [ ] Login: < 2 seconds
+- [ ] Profile fetch: < 100ms (with RLS disabled)
+- [ ] Dashboard load: < 1 second
+- [ ] Listings page: < 1 second
+- [ ] Image upload: < 5 seconds (depends on file size)
+
+### Real-time Updates
+- [ ] Open app in 2 browsers as same user
+- [ ] Create listing in Browser 1
+- [ ] Verify it appears in Browser 2 within 2 seconds
+- [ ] Edit listing in Browser 2
+- [ ] Verify changes appear in Browser 1
+
+---
+
+## 🐛 Known Issues & Limitations
+
+### Current Limitations (Free Tier Supabase)
+- ✅ RLS is **DISABLED** for development
+- ⚠️ Connection pool limited to 15 connections
+- ⚠️ No automatic backups
+- ⚠️ Limited storage (500MB)
+
+### After Upgrade (Paid Tier)
+- ✅ Re-enable RLS for security
+- ✅ Increase connection pool to 20-30
+- ✅ Enable automatic backups
+- ✅ Unlimited storage
+
+---
+
+## 📝 Test Results Log
+
+### Test Session: [Date]
+
+**Super Admin:**
+- [ ] Login successful
+- [ ] Dashboard loads
+- [ ] Can view all users
+- [ ] Can create users
+- [ ] Can view all listings
+- [ ] Can edit any listing
+
+**Admin:**
+- [ ] Login successful
+- [ ] Dashboard loads
+- [ ] Can only see assigned clients' listings
+- [ ] Cannot access Users page
+- [ ] Cannot see unassigned listings
+
+**Client:**
+- [ ] Login successful
+- [ ] Dashboard loads
+- [ ] Can only see own listings
+- [ ] Can create new listing
+- [ ] Can edit own listing
+- [ ] Cannot see other clients' listings
+- [ ] Cannot access Users page
+
+**Notes:**
+[Add any issues or observations here]
+
+---
+
+## 🔧 Troubleshooting
+
+### Issue: "Profile Load Failed"
+**Solution:**
+1. Check Supabase connection in DevTools console
+2. Verify environment variables are correct
+3. Check if user has a profile in `profiles` table
+4. Verify role is one of: super_admin, admin, client
+
+### Issue: "Loading your data..." stuck
+**Solution:**
+1. Check browser console for errors
+2. Verify Supabase is responding
+3. Check if RLS is causing timeout (disable temporarily)
+4. Hard refresh browser (Ctrl+Shift+R)
+
+### Issue: Can't see listings
+**Solution:**
+1. Verify user has correct role
+2. For admin: verify `managed_by` is set correctly
+3. For client: verify `owner_id` matches user ID
+4. Check RLS policies if enabled
+
+---
+
+## ✅ Sign-Off
+
+Before launching to production:
+
+- [ ] All super_admin tests pass
+- [ ] All admin tests pass
+- [ ] All client tests pass
+- [ ] Security testing complete
+- [ ] Performance acceptable
+- [ ] Supabase upgraded to paid tier
+- [ ] RLS re-enabled and tested
+- [ ] All users have correct roles
+- [ ] Real-time updates working
+- [ ] Image uploads working
+- [ ] Weather API working
+- [ ] No console errors
+- [ ] Mobile responsive
+- [ ] Browser compatibility tested
+
+**Tested By:** _________________
+**Date:** _________________
+**Approved By:** _________________
+**Date:** _________________
+
+---
 
 ## 🚀 Quick Start
 

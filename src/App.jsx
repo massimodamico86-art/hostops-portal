@@ -193,7 +193,7 @@ export default function HostOpsApp() {
   ];
 
   const pages = {
-    dashboard: <DashboardPage setCurrentPage={setCurrentPage} showToast={showToast} listings={listings} />,
+    dashboard: <DashboardPage setCurrentPage={setCurrentPage} showToast={showToast} listings={listings} setListings={setListings} />,
     listings: <ListingsPage showToast={showToast} listings={listings} setListings={setListings} />,
     guidebooks: <GuidebooksPage showToast={showToast} />,
     monetize: <MonetizePage showToast={showToast} />,
