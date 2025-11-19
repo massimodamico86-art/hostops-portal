@@ -96,6 +96,12 @@ export const AuthProvider = ({ children }) => {
       console.error('❌ [AuthContext] Error fetching user profile:', err);
       console.error('❌ [AuthContext] Full error object:', err);
 
+      // Don't overwrite existing valid profile with error state on re-fetch failures
+      if (userProfile && !userProfile.error) {
+        console.warn('⚠️ [AuthContext] Profile re-fetch failed, keeping existing profile');
+        return;
+      }
+
       // Set a special error state instead of null
       setUserProfile({
         error: true,
