@@ -236,6 +236,45 @@ export default function HostOpsApp() {
     return <LoginPage />;
   }
 
+  // Show error state if profile fetch failed
+  if (authUserProfile?.error) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Profile Load Failed</h2>
+          <p className="text-gray-600 mb-4">{authUserProfile.errorMessage}</p>
+          <div className="bg-gray-100 rounded p-4 mb-4 text-left">
+            <p className="text-sm text-gray-700 font-mono mb-2">Debug Info:</p>
+            <p className="text-xs text-gray-600 font-mono">User ID: {user?.id}</p>
+            <p className="text-xs text-gray-600 font-mono">Email: {user?.email}</p>
+            {authUserProfile.errorCode && (
+              <p className="text-xs text-gray-600 font-mono">Error Code: {authUserProfile.errorCode}</p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+            <button
+              onClick={handleSignOut}
+              className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Show loading state while fetching data OR userProfile
   if (loadingData || !authUserProfile) {
     return (
@@ -243,6 +282,7 @@ export default function HostOpsApp() {
         <div className="text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl mx-auto mb-4 animate-pulse"></div>
           <p className="text-gray-600">Loading your data...</p>
+          <p className="text-gray-400 text-sm mt-2">If this takes more than 10 seconds, check the console for errors</p>
         </div>
       </div>
     );

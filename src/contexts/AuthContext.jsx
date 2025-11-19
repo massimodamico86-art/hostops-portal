@@ -17,15 +17,18 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Fetch user profile including role information
-  const fetchUserProfile = async (userId) => {
+  const fetchUserProfile = async (userId, userEmail) => {
     if (!userId) {
       setUserProfile(null);
       return;
     }
 
     try {
-      console.log('🔍 Fetching profile for user:', userId);
+      console.log('🔍 [AuthContext] Fetching profile for user:', userId);
+      console.log('🔍 [AuthContext] Using Supabase URL:', supabase.supabaseUrl);
+      console.log('🔍 [AuthContext] User email:', userEmail);
 
+      // Build the query
       const queryPromise = supabase
         .from('profiles')
         .select('id, email, full_name, role, managed_by, created_at')
@@ -37,28 +40,62 @@ export const AuthProvider = ({ children }) => {
         setTimeout(() => reject(new Error('Profile fetch timeout after 10 seconds')), 10000)
       );
 
-      console.log('🔍 Query built, executing with 10s timeout...');
+      console.log('🔍 [AuthContext] Query built, executing with 10s timeout...');
       const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
       if (error) {
-        console.error('❌ Profile fetch error:', error);
-        console.error('Error details:', {
+        console.error('❌ [AuthContext] Profile fetch error:', error);
+        console.error('❌ [AuthContext] Error details:', {
           message: error.message,
           code: error.code,
           details: error.details,
-          hint: error.hint
+          hint: error.hint,
+          supabaseUrl: supabase.supabaseUrl
         });
+
+        // PGRST116 = no rows returned - profile doesn't exist
+        if (error.code === 'PGRST116') {
+          console.log('⚠️ [AuthContext] Profile not found (PGRST116), attempting to create...');
+
+          // Attempt to auto-create profile
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: userId,
+                email: userEmail,
+                full_name: userEmail.split('@')[0], // Use email prefix as default name
+                role: 'client' // Default role
+              }
+            ])
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('❌ [AuthContext] Failed to auto-create profile:', insertError);
+            throw new Error(`Profile not found and could not be created. Error: ${insertError.message}`);
+          }
+
+          console.log('✅ [AuthContext] Profile auto-created:', newProfile);
+          setUserProfile(newProfile);
+          return;
+        }
+
         throw error;
       }
 
-      console.log('✅ Profile fetched successfully:', data);
+      console.log('✅ [AuthContext] Profile fetched successfully:', data);
       setUserProfile(data);
     } catch (err) {
-      console.error('❌ Error fetching user profile:', err);
-      console.error('Full error object:', err);
-      setUserProfile(null);
-      // Show visible error instead of infinite spinner
-      alert(`Unable to load profile: ${err.message || 'Unknown error'}. Check browser console for details.`);
+      console.error('❌ [AuthContext] Error fetching user profile:', err);
+      console.error('❌ [AuthContext] Full error object:', err);
+
+      // Set a special error state instead of null
+      setUserProfile({
+        error: true,
+        errorMessage: err.message || 'Unknown error',
+        errorCode: err.code
+      });
     }
   };
 
@@ -84,7 +121,7 @@ export const AuthProvider = ({ children }) => {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          await fetchUserProfile(session.user.id);
+          await fetchUserProfile(session.user.id, session.user.email);
         }
       } catch (error) {
         console.error('❌ AuthContext: Init error', error);
@@ -105,7 +142,7 @@ export const AuthProvider = ({ children }) => {
 
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchUserProfile(session.user.id);
+        await fetchUserProfile(session.user.id, session.user.email);
       } else {
         setUserProfile(null);
       }
@@ -224,7 +261,7 @@ export const AuthProvider = ({ children }) => {
     updatePassword,
     signInWithGoogle,
     resendVerificationEmail,
-    refreshProfile: () => fetchUserProfile(user?.id)
+    refreshProfile: () => fetchUserProfile(user?.id, user?.email)
   };
 
   return (
