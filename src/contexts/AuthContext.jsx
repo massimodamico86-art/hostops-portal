@@ -17,9 +17,15 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Fetch user profile including role information
-  const fetchUserProfile = async (userId, userEmail) => {
+  const fetchUserProfile = async (userId, userEmail, skipIfExists = false) => {
     if (!userId) {
       setUserProfile(null);
+      return;
+    }
+
+    // Skip fetch if profile already exists and skipIfExists is true
+    if (skipIfExists && userProfile && !userProfile.error) {
+      console.log('⏭️ [AuthContext] Skipping profile fetch - already loaded');
       return;
     }
 
@@ -142,7 +148,9 @@ export const AuthProvider = ({ children }) => {
 
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchUserProfile(session.user.id, session.user.email);
+        // Skip re-fetching if profile already loaded (unless SIGNED_IN event)
+        const skipIfExists = _event !== 'SIGNED_IN';
+        await fetchUserProfile(session.user.id, session.user.email, skipIfExists);
       } else {
         setUserProfile(null);
       }
