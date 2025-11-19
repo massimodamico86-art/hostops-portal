@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import Button from '../Button';
-import Modal from '../Modal';
+import SimpleModal from '../SimpleModal';
 
 export const AddListingModal = ({ onClose, onAdd, showToast }) => {
   const [formData, setFormData] = useState({
@@ -40,7 +40,7 @@ export const AddListingModal = ({ onClose, onAdd, showToast }) => {
   };
 
   return (
-    <Modal onClose={onClose} maxWidth="max-w-2xl">
+    <SimpleModal onClose={onClose} maxWidth="max-w-2xl">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Add New Listing</h2>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -148,6 +148,6 @@ export const AddListingModal = ({ onClose, onAdd, showToast }) => {
           </Button>
         </div>
       </form>
-    </Modal>
+    </SimpleModal>
   );
 };
