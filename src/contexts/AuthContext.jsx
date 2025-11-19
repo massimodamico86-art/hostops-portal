@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Fetch user profile including role information
-  const fetchUserProfile = async (userId, userEmail, skipIfExists = false) => {
+  const fetchUserProfile = async (userId, userEmail, skipIfExists = false, retryCount = 0) => {
     if (!userId) {
       setUserProfile(null);
       return;
@@ -30,23 +30,23 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      console.log('🔍 [AuthContext] Fetching profile for user:', userId);
+      console.log(`🔍 [AuthContext] Fetching profile for user (attempt ${retryCount + 1}):`, userId);
       console.log('🔍 [AuthContext] Using Supabase URL:', supabase.supabaseUrl);
       console.log('🔍 [AuthContext] User email:', userEmail);
 
-      // Build the query
+      // Build the query with minimal fields for faster response
       const queryPromise = supabase
         .from('profiles')
-        .select('id, email, full_name, role, managed_by, created_at')
+        .select('id, email, full_name, role')
         .eq('id', userId)
         .single();
 
-      // 10s timeout so we never hang forever
+      // Longer timeout for production network latency (20s)
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile fetch timeout after 10 seconds')), 10000)
+        setTimeout(() => reject(new Error('Profile fetch timeout after 20 seconds')), 20000)
       );
 
-      console.log('🔍 [AuthContext] Query built, executing with 10s timeout...');
+      console.log('🔍 [AuthContext] Query built, executing with 20s timeout...');
       const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
       if (error) {
@@ -95,6 +95,13 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('❌ [AuthContext] Error fetching user profile:', err);
       console.error('❌ [AuthContext] Full error object:', err);
+
+      // Retry logic - try up to 2 times if timeout
+      if (retryCount < 2 && err.message && err.message.includes('timeout')) {
+        console.log(`🔄 [AuthContext] Retrying profile fetch (${retryCount + 1}/2)...`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+        return fetchUserProfile(userId, userEmail, false, retryCount + 1);
+      }
 
       // Don't overwrite existing valid profile with error state on re-fetch failures
       if (userProfile && !userProfile.error) {
