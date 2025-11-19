@@ -3,25 +3,25 @@
 # =====================================================
 
 # 1. SUPABASE DATABASE (Production)
-# Get from: Supabase Dashboard → Project Settings → API
-VITE_SUPABASE_URL=YOUR_PRODUCTION_SUPABASE_URL_HERE
-VITE_SUPABASE_ANON_KEY=YOUR_PRODUCTION_ANON_KEY_HERE
+# From: Supabase Dashboard → Project Settings → API
+VITE_SUPABASE_URL=https://arqdwxpdodtafjdyairm.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFycWR3eHBkb2R0YWZqZHlhaXJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNTQ4ODksImV4cCI6MjA3ODczMDg4OX0.lH9hoSG-atC9kWsLkOTM7i7l2GEN3Y7SLsRrfuPxX7U
 
 # 2. DEVICE TOKEN (Production - NEW TOKEN)
 # Generated: 2025-11-14
 VITE_DEVICE_TOKEN=5e01c7d46f39e2fd8028b6beb94f014fd343a0c980b6b8c0535081785e7c52b6
 
 # 3. OPENWEATHERMAP API (Same as development)
-# Get from: https://openweathermap.org/api
+# From: https://openweathermap.org/api
 VITE_OPENWEATHER_API_KEY=ee6278eb2f2d20f0bf359eb254c8a6c3
 
 # 4. CLOUDINARY CDN (Same as development)
-# Get from: https://cloudinary.com/console
+# From: https://cloudinary.com/console
 VITE_CLOUDINARY_CLOUD_NAME=dtxaxuvyk
 VITE_CLOUDINARY_UPLOAD_PRESET=hostops-unsigned
 
 # =====================================================
-# INSTRUCTIONS FOR VERCEL:
+# READY TO DEPLOY TO VERCEL!
 # =====================================================
 #
 # In Vercel Dashboard:
@@ -33,5 +33,5 @@ VITE_CLOUDINARY_UPLOAD_PRESET=hostops-unsigned
 #    d. Select all three: ✓ Production ✓ Preview ✓ Development
 #    e. Click "Save"
 #
-# IMPORTANT: Update the Supabase URL and anon key with YOUR values!
+# All values are now filled in with your production credentials!
 # =====================================================
