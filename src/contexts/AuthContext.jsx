@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 
 const AuthContext = createContext({});
@@ -17,16 +17,31 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Fetch user profile including role information
-  const fetchUserProfile = async (userId, userEmail, skipIfExists = false, retryCount = 0) => {
+  const fetchUserProfile = useCallback(async (userId, userEmail, skipIfExists = false, retryCount = 0) => {
     if (!userId) {
       setUserProfile(null);
       return;
     }
 
     // Skip fetch if profile already exists and skipIfExists is true
-    if (skipIfExists && userProfile && !userProfile.error) {
-      console.log('⏭️ [AuthContext] Skipping profile fetch - already loaded');
-      return;
+    // Note: We check userProfile in the closure, but it's stable due to dependencies
+    setUserProfile(prevProfile => {
+      if (skipIfExists && prevProfile && !prevProfile.error) {
+        console.log('⏭️ [AuthContext] Skipping profile fetch - already loaded');
+        return prevProfile; // Return existing profile
+      }
+      return prevProfile; // Continue with fetch
+    });
+
+    // If skipIfExists and profile exists, return early
+    if (skipIfExists) {
+      const shouldSkip = await new Promise(resolve => {
+        setUserProfile(prevProfile => {
+          resolve(prevProfile && !prevProfile.error);
+          return prevProfile;
+        });
+      });
+      if (shouldSkip) return;
     }
 
     try {
@@ -54,30 +69,9 @@ export const AuthProvider = ({ children }) => {
 
         // PGRST116 = no rows returned - profile doesn't exist
         if (error.code === 'PGRST116') {
-          console.log('⚠️ [AuthContext] Profile not found (PGRST116), attempting to create...');
-
-          // Attempt to auto-create profile
-          const { data: newProfile, error: insertError } = await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: userId,
-                email: userEmail,
-                full_name: userEmail.split('@')[0], // Use email prefix as default name
-                role: 'client' // Default role
-              }
-            ])
-            .select()
-            .single();
-
-          if (insertError) {
-            console.error('❌ [AuthContext] Failed to auto-create profile:', insertError);
-            throw new Error(`Profile not found and could not be created. Error: ${insertError.message}`);
-          }
-
-          console.log('✅ [AuthContext] Profile auto-created:', newProfile);
-          setUserProfile(newProfile);
-          return;
+          console.error('❌ [AuthContext] Profile not found (PGRST116)');
+          console.error('❌ [AuthContext] This should not happen - database trigger should auto-create profiles');
+          throw new Error('Profile not found. Please contact support if this issue persists.');
         }
 
         throw error;
@@ -90,19 +84,21 @@ export const AuthProvider = ({ children }) => {
       console.error('❌ [AuthContext] Full error object:', err);
 
       // Don't overwrite existing valid profile with error state on re-fetch failures
-      if (userProfile && !userProfile.error) {
-        console.warn('⚠️ [AuthContext] Profile re-fetch failed, keeping existing profile');
-        return;
-      }
+      setUserProfile(prevProfile => {
+        if (prevProfile && !prevProfile.error) {
+          console.warn('⚠️ [AuthContext] Profile re-fetch failed, keeping existing profile');
+          return prevProfile; // Keep existing valid profile
+        }
 
-      // Set a special error state instead of null
-      setUserProfile({
-        error: true,
-        errorMessage: err.message || 'Unknown error',
-        errorCode: err.code
+        // Set a special error state instead of null
+        return {
+          error: true,
+          errorMessage: err.message || 'Unknown error',
+          errorCode: err.code
+        };
       });
     }
-  };
+  }, []); // Empty dependencies - function is stable
 
   useEffect(() => {
     console.log('🔄 AuthContext: Initializing auth...');
@@ -159,7 +155,7 @@ export const AuthProvider = ({ children }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchUserProfile]); // Add fetchUserProfile to dependencies
 
   const signUp = async (email, password, fullName) => {
     const { data, error } = await supabase.auth.signUp({
@@ -174,21 +170,8 @@ export const AuthProvider = ({ children }) => {
 
     if (error) throw error;
 
-    // Create profile
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: data.user.id,
-            email: data.user.email,
-            full_name: fullName,
-            role: 'client'
-          }
-        ]);
-
-      if (profileError) console.error('Profile creation error:', profileError);
-    }
+    // Profile will be automatically created by database trigger (010_auto_create_profiles.sql)
+    // The trigger reads full_name from user metadata (raw_user_meta_data->>'full_name')
 
     return data;
   };

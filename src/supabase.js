@@ -22,8 +22,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// TEMPORARY: Expose for debugging
-if (typeof window !== 'undefined') {
+// Only expose in development for debugging
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
   window.supabase = supabase;
 }
 

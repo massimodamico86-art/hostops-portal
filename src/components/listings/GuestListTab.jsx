@@ -41,9 +41,12 @@ export const GuestListTab = ({ formData, setFormData, showToast }) => {
           firstName: guest.first_name,
           lastName: guest.last_name,
           email: guest.email,
+          phone: guest.phone,
           checkIn: guest.check_in,
           checkOut: guest.check_out,
-          language: guest.language
+          language: guest.language,
+          specialRequests: guest.special_requests,
+          notes: guest.notes
         }));
 
         setFormData({
@@ -80,9 +83,12 @@ export const GuestListTab = ({ formData, setFormData, showToast }) => {
               firstName: payload.new.first_name,
               lastName: payload.new.last_name,
               email: payload.new.email,
+              phone: payload.new.phone,
               checkIn: payload.new.check_in,
               checkOut: payload.new.check_out,
-              language: payload.new.language
+              language: payload.new.language,
+              specialRequests: payload.new.special_requests,
+              notes: payload.new.notes
             };
             setFormData(prev => ({
               ...prev,
@@ -94,9 +100,12 @@ export const GuestListTab = ({ formData, setFormData, showToast }) => {
               firstName: payload.new.first_name,
               lastName: payload.new.last_name,
               email: payload.new.email,
+              phone: payload.new.phone,
               checkIn: payload.new.check_in,
               checkOut: payload.new.check_out,
-              language: payload.new.language
+              language: payload.new.language,
+              specialRequests: payload.new.special_requests,
+              notes: payload.new.notes
             };
             setFormData(prev => ({
               ...prev,
@@ -169,9 +178,12 @@ export const GuestListTab = ({ formData, setFormData, showToast }) => {
           first_name: guestData.firstName,
           last_name: guestData.lastName,
           email: guestData.email,
+          phone: guestData.phone,
           check_in: guestData.checkIn,
           check_out: guestData.checkOut,
-          language: guestData.language
+          language: guestData.language,
+          special_requests: guestData.specialRequests,
+          notes: guestData.notes
         }])
         .select()
         .single();
@@ -184,9 +196,12 @@ export const GuestListTab = ({ formData, setFormData, showToast }) => {
         firstName: data.first_name,
         lastName: data.last_name,
         email: data.email,
+        phone: data.phone,
         checkIn: data.check_in,
         checkOut: data.check_out,
-        language: data.language
+        language: data.language,
+        specialRequests: data.special_requests,
+        notes: data.notes
       };
 
       setFormData({
@@ -211,9 +226,12 @@ export const GuestListTab = ({ formData, setFormData, showToast }) => {
           first_name: guestData.firstName,
           last_name: guestData.lastName,
           email: guestData.email,
+          phone: guestData.phone,
           check_in: guestData.checkIn,
           check_out: guestData.checkOut,
           language: guestData.language,
+          special_requests: guestData.specialRequests,
+          notes: guestData.notes,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingGuest.id);
