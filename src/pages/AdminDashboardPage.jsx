@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabase';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 export default function AdminDashboardPage() {
   const { userProfile } = useAuth();
@@ -32,29 +33,36 @@ export default function AdminDashboardPage() {
 
       if (clientsError) throw clientsError;
 
-      // For each client, fetch their listings count
+      // For each client, fetch their listings count and guests count
       const clientsWithStats = await Promise.all(
         (clientsData || []).map(async (client) => {
-          const { count: listingsCount } = await supabase
+          // First, fetch listing IDs for this client
+          const { data: clientListings } = await supabase
             .from('listings')
-            .select('*', { count: 'exact', head: true })
+            .select('id')
             .eq('owner_id', client.id);
 
-          const { count: guestsCount } = await supabase
-            .from('guests')
-            .select('*', { count: 'exact', head: true })
-            .in('listing_id',
-              await supabase
-                .from('listings')
-                .select('id')
-                .eq('owner_id', client.id)
-                .then(res => res.data?.map(l => l.id) || [])
-            );
+          const listingIds = clientListings?.map(l => l.id) || [];
+
+          // Now fetch counts in parallel
+          const [listingsResult, guestsResult] = await Promise.all([
+            supabase
+              .from('listings')
+              .select('*', { count: 'exact', head: true })
+              .eq('owner_id', client.id),
+
+            listingIds.length > 0
+              ? supabase
+                  .from('guests')
+                  .select('*', { count: 'exact', head: true })
+                  .in('listing_id', listingIds)
+              : Promise.resolve({ count: 0 })
+          ]);
 
           return {
             ...client,
-            listingsCount: listingsCount || 0,
-            guestsCount: guestsCount || 0
+            listingsCount: listingsResult.count || 0,
+            guestsCount: guestsResult.count || 0
           };
         })
       );
@@ -91,8 +99,9 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
@@ -262,7 +271,8 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

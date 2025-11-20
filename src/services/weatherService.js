@@ -9,6 +9,7 @@ const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org/data/2.5';
 // Cache weather data to avoid excessive API calls
 const weatherCache = new Map();
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
+const MAX_CACHE_SIZE = 50; // Limit cache to 50 entries to prevent memory issues
 
 /**
  * Get weather data for a city
@@ -30,8 +31,16 @@ export async function getWeather(city, units = 'imperial') {
   // Check cache first
   const cacheKey = `${city}-${units}`;
   const cached = weatherCache.get(cacheKey);
+
+  // Check if cached data is still valid
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    console.log(`Using cached weather data for ${city} (${units})`);
     return cached.data;
+  }
+
+  // Remove expired entry if it exists
+  if (cached && Date.now() - cached.timestamp >= CACHE_DURATION) {
+    weatherCache.delete(cacheKey);
   }
 
   try {
@@ -53,11 +62,21 @@ export async function getWeather(city, units = 'imperial') {
     const data = await response.json();
     const weatherData = formatWeatherData(data, units);
 
+    // Implement cache size limit using LRU strategy
+    if (weatherCache.size >= MAX_CACHE_SIZE) {
+      // Remove oldest entry (first entry in Map)
+      const firstKey = weatherCache.keys().next().value;
+      weatherCache.delete(firstKey);
+      console.log(`Weather cache limit reached, removed oldest entry: ${firstKey}`);
+    }
+
     // Cache the result
     weatherCache.set(cacheKey, {
       data: weatherData,
       timestamp: Date.now()
     });
+
+    console.log(`Cached weather data for ${city} (${units}). Cache size: ${weatherCache.size}`);
 
     return weatherData;
   } catch (error) {
@@ -132,6 +151,36 @@ function capitalizeWords(str) {
  */
 export function clearWeatherCache() {
   weatherCache.clear();
+  console.log('Weather cache cleared');
+}
+
+/**
+ * Remove expired entries from cache
+ * This helps keep memory usage low by periodically cleaning up old data
+ */
+export function cleanupExpiredCache() {
+  const now = Date.now();
+  let removedCount = 0;
+
+  for (const [key, value] of weatherCache.entries()) {
+    if (now - value.timestamp >= CACHE_DURATION) {
+      weatherCache.delete(key);
+      removedCount++;
+    }
+  }
+
+  if (removedCount > 0) {
+    console.log(`Cleaned up ${removedCount} expired weather cache entries. Remaining: ${weatherCache.size}`);
+  }
+
+  return removedCount;
+}
+
+// Automatically cleanup expired cache entries every 10 minutes
+if (typeof window !== 'undefined') {
+  setInterval(() => {
+    cleanupExpiredCache();
+  }, 10 * 60 * 1000); // 10 minutes
 }
 
 /**

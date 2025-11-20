@@ -21,7 +21,7 @@ BEGIN
   UPDATE public.tv_devices
   SET last_seen = NOW(),
       is_online = true
-  WHERE otp_code = p_otp;
+  WHERE otp = p_otp;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

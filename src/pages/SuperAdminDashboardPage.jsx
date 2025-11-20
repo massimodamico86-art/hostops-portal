@@ -9,6 +9,7 @@ import {
   assignClientToAdmin,
   unassignClient
 } from '../services/adminService';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 export default function SuperAdminDashboardPage() {
   const { userProfile } = useAuth();
@@ -91,8 +92,9 @@ export default function SuperAdminDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
@@ -397,7 +399,8 @@ export default function SuperAdminDashboardPage() {
             )}
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

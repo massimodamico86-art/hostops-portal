@@ -7,10 +7,15 @@
 -- - client: Self-contained account
 -- =====================================================
 
--- 1. Add role column to profiles table
+-- 1. Ensure role column exists and has correct constraint
+-- First, add column if it doesn't exist (from fresh install)
 ALTER TABLE profiles
-ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'client'
-CHECK (role IN ('super_admin', 'admin', 'client'));
+ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'client';
+
+-- Drop old constraint if it exists, then add the correct one
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE profiles
+ADD CONSTRAINT profiles_role_check CHECK (role IN ('super_admin', 'admin', 'client'));
 
 -- 2. Add managed_by column to profiles table (for admin-client relationship)
 ALTER TABLE profiles

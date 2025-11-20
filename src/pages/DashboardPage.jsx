@@ -9,6 +9,7 @@ import StatCard from '../components/StatCard';
 import DateRangeModal from '../components/DateRangeModal';
 import OptimizedImage from '../components/OptimizedImage';
 import { AddListingModal } from '../components/listings/AddListingModal';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const DashboardPage = ({ setCurrentPage, showToast, listings, setListings }) => {
   const { user } = useAuth();
@@ -84,6 +85,17 @@ const DashboardPage = ({ setCurrentPage, showToast, listings, setListings }) => 
 
   const handleAddListing = async (newListingData) => {
     try {
+      // Debug: Log user info before INSERT
+      console.log('🔍 Creating listing with user:', {
+        userId: user?.id,
+        userEmail: user?.email,
+        hasUser: !!user
+      });
+
+      if (!user?.id) {
+        throw new Error('User ID is not available. Please refresh the page and try again.');
+      }
+
       // Insert into Supabase with all default values
       const { data, error } = await supabase
         .from('listings')
@@ -106,7 +118,7 @@ const DashboardPage = ({ setCurrentPage, showToast, listings, setListings }) => 
           background_image: null,
           background_video: null,
           background_music: null,
-          tv_layout: 1,
+          tv_layout: 'layout1',
           language: 'en',
           wifi_network: '',
           wifi_password: '',
@@ -142,12 +154,19 @@ const DashboardPage = ({ setCurrentPage, showToast, listings, setListings }) => 
       showToast('Listing created successfully!');
     } catch (error) {
       console.error('Error adding listing:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       throw error;
     }
   };
 
   return (
-    <div className="space-y-6">
+    <ErrorBoundary>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
@@ -236,7 +255,8 @@ const DashboardPage = ({ setCurrentPage, showToast, listings, setListings }) => 
           showToast={showToast}
         />
       )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

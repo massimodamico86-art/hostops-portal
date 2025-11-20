@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 
+// Auth context for user authentication and profile management
 const AuthContext = createContext({});
 
 export const useAuth = () => {
@@ -16,7 +17,33 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile including role information
+  /**
+   * Fetch user profile from Supabase including role information
+   *
+   * This function handles profile fetching with built-in error handling and retry logic.
+   * It supports skipping unnecessary fetches if the profile is already loaded.
+   *
+   * @param {string} userId - The UUID of the user to fetch profile for
+   * @param {string} userEmail - The user's email address (used for logging)
+   * @param {boolean} [skipIfExists=false] - If true, skip fetch if profile already exists in state
+   * @param {number} [retryCount=0] - Current retry attempt number (used for logging)
+   *
+   * @returns {Promise<void>} Updates userProfile state with either:
+   *   - Profile data object: {id, email, full_name, role}
+   *   - Error object: {error: true, errorMessage: string, errorCode: string}
+   *
+   * @example
+   * // Fetch profile on initial login
+   * await fetchUserProfile(user.id, user.email);
+   *
+   * @example
+   * // Skip fetch if profile already loaded
+   * await fetchUserProfile(user.id, user.email, true);
+   *
+   * Error Codes:
+   * - PGRST116: Profile not found in database
+   * - Other codes: RLS policy violations, network errors, etc.
+   */
   const fetchUserProfile = useCallback(async (userId, userEmail, skipIfExists = false, retryCount = 0) => {
     if (!userId) {
       setUserProfile(null);
@@ -69,54 +96,32 @@ export const AuthProvider = ({ children }) => {
 
         // PGRST116 = no rows returned - profile doesn't exist
         if (error.code === 'PGRST116') {
-          console.warn('⚠️ [AuthContext] Profile not found (PGRST116) - attempting to create...');
-
-          // Temporary fallback: create profile client-side for existing users
-          // TODO: Remove this once database trigger is applied
-          try {
-            const { data: newProfile, error: insertError } = await supabase
-              .from('profiles')
-              .insert([{
-                id: userId,
-                email: userEmail,
-                full_name: userEmail.split('@')[0],
-                role: 'client'
-              }])
-              .select()
-              .single();
-
-            if (insertError) {
-              console.error('❌ [AuthContext] Failed to create profile:', insertError);
-              throw new Error(`Profile not found and could not be created: ${insertError.message}`);
-            }
-
-            console.log('✅ [AuthContext] Profile created successfully:', newProfile);
-            setUserProfile(newProfile);
-            return;
-          } catch (createErr) {
-            console.error('❌ [AuthContext] Profile creation failed:', createErr);
-            throw new Error('Profile not found. Please contact support if this issue persists.');
-          }
+          console.error('❌ CRITICAL: Profile not found for user', userId);
+          setUserProfile({
+            error: true,
+            errorMessage: 'Your profile was not created properly. Please contact support.',
+            errorCode: error.code
+          });
+          return;
         }
 
-        throw error;
+        // Other errors (RLS, network, etc.)
+        setUserProfile({
+          error: true,
+          errorMessage: `Profile load failed: ${error.message}`,
+          errorCode: error.code
+        });
+        return;
       }
 
       console.log('✅ [AuthContext] Profile fetched successfully:', data);
       setUserProfile(data);
     } catch (err) {
       console.error('❌ [AuthContext] Error fetching user profile:', err);
-      console.error('❌ [AuthContext] Full error object:', err);
-
-      // TEMPORARY BYPASS: If profile fetch fails, create a temporary profile in state
-      // This is a temporary workaround for RLS issues
-      console.warn('⚠️ [AuthContext] TEMPORARY BYPASS: Creating temporary profile');
       setUserProfile({
-        id: userId,
-        email: userEmail,
-        full_name: userEmail.split('@')[0],
-        role: 'client',
-        _temporary: true  // Flag to indicate this is a temporary profile
+        error: true,
+        errorMessage: `Unexpected error: ${err.message}`,
+        errorCode: err.code
       });
     }
   }, []); // Empty dependencies - function is stable

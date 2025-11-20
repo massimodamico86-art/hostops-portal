@@ -18,7 +18,7 @@ export const AddListingModal = ({ onClose, onAdd, showToast }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
+    // Required field validation
     if (!formData.name.trim()) {
       showToast('Please enter a listing name', 'error');
       return;
@@ -28,9 +28,51 @@ export const AddListingModal = ({ onClose, onAdd, showToast }) => {
       return;
     }
 
+    // Numeric field validation and sanitization
+    const bedrooms = parseInt(formData.bedrooms, 10);
+    const bathrooms = parseFloat(formData.bathrooms);
+    const guests = parseInt(formData.guests, 10);
+    const tvs = parseInt(formData.tvs, 10);
+
+    // Validate numeric fields are valid numbers
+    if (isNaN(bedrooms) || isNaN(bathrooms) || isNaN(guests) || isNaN(tvs)) {
+      showToast('Please enter valid numbers for property details', 'error');
+      return;
+    }
+
+    // Enforce minimum constraints
+    if (bedrooms < 0) {
+      showToast('Bedrooms must be 0 or greater', 'error');
+      return;
+    }
+    if (bathrooms < 0) {
+      showToast('Bathrooms must be 0 or greater', 'error');
+      return;
+    }
+    if (guests < 1) {
+      showToast('Number of guests must be at least 1', 'error');
+      return;
+    }
+    if (tvs < 0) {
+      showToast('Number of TVs must be 0 or greater', 'error');
+      return;
+    }
+
+    // Create sanitized data object
+    const sanitizedData = {
+      ...formData,
+      name: formData.name.trim(),
+      address: formData.address.trim(),
+      description: formData.description.trim(),
+      bedrooms,
+      bathrooms,
+      guests,
+      tvs
+    };
+
     setSaving(true);
     try {
-      await onAdd(formData);
+      await onAdd(sanitizedData);
       onClose();
     } catch (error) {
       showToast('Error creating listing: ' + error.message, 'error');

@@ -9,6 +9,8 @@ import { PropertyDetailsModal } from '../components/listings/PropertyDetailsModa
 import { TVPreviewModal } from '../components/listings/TVPreviewModal';
 import { AddListingModal } from '../components/listings/AddListingModal';
 import { downloadListingsCSV } from '../services/exportService';
+import ErrorBoundary from '../components/ErrorBoundary';
+import { getSupabaseErrorMessage, logError } from '../utils/errorMessages';
 
 const ListingsPage = ({ showToast, listings, setListings }) => {
   const { user } = useAuth();
@@ -17,6 +19,7 @@ const ListingsPage = ({ showToast, listings, setListings }) => {
   const [previewListing, setPreviewListing] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const filteredListings = listings.filter(listing =>
     listing.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -147,8 +150,9 @@ const ListingsPage = ({ showToast, listings, setListings }) => {
       setListings([data, ...listings]);
       showToast('Listing created successfully!');
     } catch (error) {
-      console.error('Error adding listing:', error);
-      throw error;
+      logError(error, 'Add listing', { userId: user.id });
+      const errorMessage = getSupabaseErrorMessage(error, 'create', 'listing');
+      throw new Error(errorMessage);
     }
   };
 
@@ -157,6 +161,7 @@ const ListingsPage = ({ showToast, listings, setListings }) => {
       return;
     }
 
+    setDeletingId(listingId);
     try {
       // Delete from Supabase
       const { error } = await supabase
@@ -170,13 +175,17 @@ const ListingsPage = ({ showToast, listings, setListings }) => {
       setListings(listings.filter(l => l.id !== listingId));
       showToast('Listing deleted successfully');
     } catch (error) {
-      console.error('Error deleting listing:', error);
-      showToast('Error deleting listing: ' + error.message, 'error');
+      logError(error, 'Delete listing', { listingId, userId: user.id });
+      const errorMessage = getSupabaseErrorMessage(error, 'delete', 'listing');
+      showToast(errorMessage, 'error');
+    } finally {
+      setDeletingId(null);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <ErrorBoundary>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Listings</h1>
@@ -264,8 +273,17 @@ const ListingsPage = ({ showToast, listings, setListings }) => {
                       <Edit size={16} />
                       Edit
                     </Button>
-                    <Button size="sm" variant="danger" onClick={() => handleDeleteListing(listing.id)}>
-                      <Trash2 size={16} />
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => handleDeleteListing(listing.id)}
+                      disabled={deletingId === listing.id}
+                    >
+                      {deletingId === listing.id ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -299,7 +317,8 @@ const ListingsPage = ({ showToast, listings, setListings }) => {
           showToast={showToast}
         />
       )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

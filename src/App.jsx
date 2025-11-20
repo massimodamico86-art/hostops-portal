@@ -1,26 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Home, BookOpen, DollarSign, Cable, CreditCard, Users, HelpCircle, Share2, Settings, ChevronRight, Building2, LogOut } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { supabase } from './supabase';
 import Toast from './components/Toast';
-import {
-  DashboardPage,
-  ListingsPage,
-  GuidebooksPage,
-  MonetizePage,
-  PMSPage,
-  SubscriptionPage,
-  UsersPage,
-  FAQsPage,
-  ReferPage,
-  SetupPage,
-  SettingsPage,
-  LoginPage,
-  ResetPasswordPage
-} from './pages';
-import AdminTestPage from './pages/AdminTestPage';
-import AdminDashboardPage from './pages/AdminDashboardPage';
-import SuperAdminDashboardPage from './pages/SuperAdminDashboardPage';
+import { LoginPage } from './pages';
+
+// Lazy load pages for better code splitting
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ListingsPage = lazy(() => import('./pages/ListingsPage'));
+const GuidebooksPage = lazy(() => import('./pages/GuidebooksPage'));
+const MonetizePage = lazy(() => import('./pages/MonetizePage'));
+const PMSPage = lazy(() => import('./pages/PMSPage'));
+const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage'));
+const UsersPage = lazy(() => import('./pages/UsersPage'));
+const FAQsPage = lazy(() => import('./pages/FAQsPage'));
+const ReferPage = lazy(() => import('./pages/ReferPage'));
+const SetupPage = lazy(() => import('./pages/SetupPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const AdminTestPage = lazy(() => import('./pages/AdminTestPage'));
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
+const SuperAdminDashboardPage = lazy(() => import('./pages/SuperAdminDashboardPage'));
 
 export default function HostOpsApp() {
   const { user, loading: authLoading, signOut, userProfile: authUserProfile } = useAuth();
@@ -44,7 +44,29 @@ export default function HostOpsApp() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Fetch user profile and listings from Supabase and subscribe to real-time changes
+  /**
+   * Fetch user data and set up real-time subscriptions
+   *
+   * This effect handles:
+   * 1. Fetching user profile from profiles table
+   * 2. Fetching listings based on user role (super_admin, admin, or client)
+   * 3. Setting up real-time subscriptions for listing changes
+   * 4. Auto-updating offline TV devices every 2 minutes
+   *
+   * Role-based data access:
+   * - super_admin: See all listings from all users
+   * - admin: See listings from assigned clients (managed_by relationship)
+   * - client: See only their own listings
+   *
+   * Real-time updates:
+   * - INSERT: New listings appear immediately
+   * - UPDATE: Listing changes reflect in real-time
+   * - DELETE: Deleted listings are removed from the list
+   *
+   * Cleanup:
+   * - Unsubscribes from real-time channel on unmount
+   * - Clears TV device status update interval
+   */
   useEffect(() => {
     if (!user) {
       setLoadingData(false);
@@ -116,6 +138,7 @@ export default function HostOpsApp() {
     fetchData();
 
     // Subscribe to real-time changes for listings
+    // RLS policies will control which listings the user can see
     const channel = supabase
       .channel(`listings-${user.id}`)
       .on(
@@ -123,28 +146,58 @@ export default function HostOpsApp() {
         {
           event: '*',
           schema: 'public',
-          table: 'listings',
-          filter: `owner_id=eq.${user.id}`
+          table: 'listings'
+          // No filter - RLS handles access control
         },
         (payload) => {
           console.log('Listing change received:', payload);
 
-          if (payload.eventType === 'INSERT') {
+          // Client-side check: only process listings we're managing
+          const currentListingIds = listings.map(l => l.id);
+          const isRelevantListing =
+            userProfile?.role === 'super_admin' || // Super admins see all
+            payload.new?.owner_id === user.id || // Own listings
+            (userProfile?.role === 'admin' && currentListingIds.includes(payload.new?.id)); // Managed client listings
+
+          // For DELETE events, check if we had this listing
+          const isRelevantDelete =
+            userProfile?.role === 'super_admin' ||
+            currentListingIds.includes(payload.old?.id);
+
+          if (payload.eventType === 'INSERT' && isRelevantListing) {
             setListings(prev => [payload.new, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
+          } else if (payload.eventType === 'UPDATE' && isRelevantListing) {
             setListings(prev =>
               prev.map(listing =>
                 listing.id === payload.new.id ? payload.new : listing
               )
             );
-          } else if (payload.eventType === 'DELETE') {
+          } else if (payload.eventType === 'DELETE' && isRelevantDelete) {
             setListings(prev =>
               prev.filter(listing => listing.id !== payload.old.id)
             );
           }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Real-time subscription active');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Real-time subscription error:', err);
+          // Optionally show toast notification to user
+          showToast?.('Real-time updates temporarily unavailable', 'error');
+        } else if (status === 'TIMED_OUT') {
+          console.error('❌ Real-time subscription timed out');
+          // Attempt to reconnect after a delay
+          setTimeout(() => {
+            console.log('🔄 Attempting to reconnect real-time subscription...');
+            supabase.removeChannel(channel);
+            // The next render will recreate the subscription
+          }, 5000);
+        } else if (status === 'CLOSED') {
+          console.warn('⚠️  Real-time subscription closed');
+        }
+      });
 
     // Update offline TV devices every 2 minutes
     const updateOfflineDevicesInterval = setInterval(async () => {
@@ -192,31 +245,43 @@ export default function HostOpsApp() {
     { id: 'setup', label: 'Setup', icon: Settings }
   ];
 
+  // Loading fallback component
+  const PageLoader = () => (
+    <div className="flex items-center justify-center h-64">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+
   const pages = {
-    dashboard: <DashboardPage setCurrentPage={setCurrentPage} showToast={showToast} listings={listings} setListings={setListings} />,
-    listings: <ListingsPage showToast={showToast} listings={listings} setListings={setListings} />,
-    guidebooks: <GuidebooksPage showToast={showToast} />,
-    monetize: <MonetizePage showToast={showToast} />,
-    pms: <PMSPage showToast={showToast} listings={listings} />,
-    subscription: <SubscriptionPage showToast={showToast} />,
-    users: <UsersPage showToast={showToast} />,
-    faqs: <FAQsPage />,
-    refer: <ReferPage showToast={showToast} />,
-    setup: <SetupPage showToast={showToast} />,
-    settings: <SettingsPage showToast={showToast} />,
-    'admin-test': <AdminTestPage />
+    dashboard: <Suspense fallback={<PageLoader />}><DashboardPage setCurrentPage={setCurrentPage} showToast={showToast} listings={listings} setListings={setListings} /></Suspense>,
+    listings: <Suspense fallback={<PageLoader />}><ListingsPage showToast={showToast} listings={listings} setListings={setListings} /></Suspense>,
+    guidebooks: <Suspense fallback={<PageLoader />}><GuidebooksPage showToast={showToast} /></Suspense>,
+    monetize: <Suspense fallback={<PageLoader />}><MonetizePage showToast={showToast} /></Suspense>,
+    pms: <Suspense fallback={<PageLoader />}><PMSPage showToast={showToast} listings={listings} /></Suspense>,
+    subscription: <Suspense fallback={<PageLoader />}><SubscriptionPage showToast={showToast} /></Suspense>,
+    users: <Suspense fallback={<PageLoader />}><UsersPage showToast={showToast} /></Suspense>,
+    faqs: <Suspense fallback={<PageLoader />}><FAQsPage /></Suspense>,
+    refer: <Suspense fallback={<PageLoader />}><ReferPage showToast={showToast} /></Suspense>,
+    setup: <Suspense fallback={<PageLoader />}><SetupPage showToast={showToast} /></Suspense>,
+    settings: <Suspense fallback={<PageLoader />}><SettingsPage showToast={showToast} /></Suspense>,
+    'admin-test': <Suspense fallback={<PageLoader />}><AdminTestPage /></Suspense>
   };
 
   // Show password reset page if user clicked reset link
   if (isPasswordReset && user) {
     return (
-      <ResetPasswordPage
-        onSuccess={() => {
-          setIsPasswordReset(false);
-          setCurrentPage('dashboard');
-          showToast('Password updated successfully!');
-        }}
-      />
+      <Suspense fallback={<PageLoader />}>
+        <ResetPasswordPage
+          onSuccess={() => {
+            setIsPasswordReset(false);
+            setCurrentPage('dashboard');
+            showToast('Password updated successfully!');
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -294,12 +359,20 @@ export default function HostOpsApp() {
 
   if (authUserProfile?.role === 'super_admin') {
     console.log('✅ Routing to SuperAdminDashboard');
-    return <SuperAdminDashboardPage />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <SuperAdminDashboardPage />
+      </Suspense>
+    );
   }
 
   if (authUserProfile?.role === 'admin') {
     console.log('✅ Routing to AdminDashboard');
-    return <AdminDashboardPage />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <AdminDashboardPage />
+      </Suspense>
+    );
   }
 
   console.log('✅ Routing to ClientDashboard (default)');
