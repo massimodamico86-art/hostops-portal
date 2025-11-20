@@ -65,3 +65,4 @@ if (typeof window !== 'undefined' && import.meta.env.DEV) {
 }
 
 // Force redeploy Tue Nov 18 15:10:14 EST 2025
+// Force redeploy Thu Nov 20 12:55:55 EST 2025
