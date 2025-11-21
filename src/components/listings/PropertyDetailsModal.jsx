@@ -6,15 +6,12 @@ import Badge from '../Badge';
 import Card from '../Card';
 import Toast from '../Toast';
 import { BackgroundMusicSelector } from './BackgroundMusicSelector';
-import { BackgroundImageSelector } from './BackgroundImageSelector';
-import { BackgroundVideoSelector } from './BackgroundVideoSelector';
 import { GuestEditModal } from './GuestEditModal';
 import { ImageUploadModal } from './ImageUploadModal';
 import { TVPreviewModal } from './TVPreviewModal';
 import { TVDeviceManagement } from './TVDeviceManagement';
 import { WelcomeMessageForm } from './WelcomeMessageForm';
-import { CarouselMediaManager } from './CarouselMediaManager';
-import { BackgroundMediaManager } from './BackgroundMediaManager';
+import { MediaSection } from './MediaSection';
 import { QRCodeManager } from './QRCodeManager';
 import { GuestListTab } from './GuestListTab';
 import ImageUploadButton from '../ImageUploadButton';
@@ -22,19 +19,31 @@ import ScaledStage from '../../ScaledStage';
 import { Layout1, Layout2, Layout3, Layout4 } from '../../layouts';
 import { getWeather } from '../../services/weatherService';
 import { getActiveGuestForLayout } from '../../utils/guestHelpers';
+import { useMediaPlayback } from '../../hooks/useMediaPlayback';
+import { migrateToUnifiedMedia } from '../../utils/mediaMigration';
+import { DEFAULT_UNIFIED_MEDIA_STATE } from '../../types/media';
 export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, listings }) => {
-  const [formData, setFormData] = useState({ ...listing });
+  // Migrate old format to unified media on init
+  const [formData, setFormData] = useState(() => {
+    const migrated = { ...listing };
+    if (!migrated.unifiedMediaState) {
+      migrated.unifiedMediaState = migrateToUnifiedMedia(listing);
+    }
+    return migrated;
+  });
+
   const [activeTab, setActiveTab] = useState('display');
   const [previewListing, setPreviewListing] = useState(null);
-  const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
-  const [showBackgroundVideoSelector, setShowBackgroundVideoSelector] = useState(false);
   const [showMusicSelector, setShowMusicSelector] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
-  const [uploadTarget, setUploadTarget] = useState({ type: null, index: null }); // Track what's being uploaded
-  const [backgroundMode, setBackgroundMode] = useState(listing.backgroundVideo ? 'video' : 'image'); // Track image/video mode
+  const [uploadTarget, setUploadTarget] = useState({ type: null, index: null });
 
   // Weather data state
   const [weatherData, setWeatherData] = useState(null);
+
+  // Unified media playback (shared by preview and layout cards)
+  const unifiedMediaState = formData.unifiedMediaState || DEFAULT_UNIFIED_MEDIA_STATE;
+  const mediaPlayback = useMediaPlayback(unifiedMediaState);
 
   // Fetch weather data when city or unit changes
   useEffect(() => {
@@ -218,9 +227,14 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
               <ScaledStage baseWidth={1920} baseHeight={1080} fullScreen={false}>
                 {(() => {
                   // Format listing data to match layout prop structure
+                  // Use current media from unified playback
+                  const currentMedia = mediaPlayback.currentItem;
+                  const backgroundImage = mediaPlayback.activeType === 'image' && currentMedia ? currentMedia.url : '';
+                  const backgroundVideo = mediaPlayback.activeType === 'video' && currentMedia ? currentMedia.url : '';
+
                   const layoutData = {
-                    backgroundImage: formData.backgroundImage,
-                    backgroundVideo: formData.backgroundVideo,
+                    backgroundImage,
+                    backgroundVideo,
                     propertyName: formData.name,
                     showWelcomeMessage: formData.showWelcomeMessage,
                     welcomeGreeting: formData.welcomeGreeting,
@@ -326,26 +340,14 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
               {/* Welcome message */}
               <WelcomeMessageForm formData={formData} setFormData={setFormData} />
 
-              {/* Grid layout for Carousel Media and other sections */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Carousel Media */}
-                <CarouselMediaManager
-                  formData={formData}
-                  setFormData={setFormData}
-                  showToast={showToast}
-                />
-
-                {/* Background media with toggle */}
-                <BackgroundMediaManager
-                  formData={formData}
-                  setFormData={setFormData}
-                  backgroundMode={backgroundMode}
-                  setBackgroundMode={setBackgroundMode}
-                  setShowBackgroundSelector={setShowBackgroundSelector}
-                  setShowBackgroundVideoSelector={setShowBackgroundVideoSelector}
-                  setShowMusicSelector={setShowMusicSelector}
-                />
-              </div>
+              {/* Unified Media Section (replaces Carousel + Background) */}
+              <MediaSection
+                unifiedMediaState={unifiedMediaState}
+                onChange={(newUnifiedMediaState) => {
+                  setFormData({ ...formData, unifiedMediaState: newUnifiedMediaState });
+                }}
+                showToast={showToast}
+              />
 
               {/* Weather settings and Branding */}
               <div className="grid grid-cols-2 gap-4">
@@ -741,9 +743,14 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
                         <ScaledStage fullScreen={false} baseWidth={1920} baseHeight={1080}>
                           {(() => {
                             // Format listing data to match layout prop structure
+                            // Use current media from unified playback
+                            const currentMedia = mediaPlayback.currentItem;
+                            const backgroundImage = mediaPlayback.activeType === 'image' && currentMedia ? currentMedia.url : '';
+                            const backgroundVideo = mediaPlayback.activeType === 'video' && currentMedia ? currentMedia.url : '';
+
                             const layoutData = {
-                              backgroundImage: formData.backgroundImage,
-                              backgroundVideo: formData.backgroundVideo,
+                              backgroundImage,
+                              backgroundVideo,
                               propertyName: formData.name,
                               showWelcomeMessage: formData.showWelcomeMessage,
                               welcomeGreeting: formData.welcomeGreeting,
@@ -817,32 +824,6 @@ export const PropertyDetailsModal = ({ listing, onClose, onSave, showToast, list
         <TVPreviewModal
           listing={previewListing}
           onClose={() => setPreviewListing(null)}
-        />
-      )}
-      
-      {showBackgroundSelector && (
-        <BackgroundImageSelector
-          isOpen={true}
-          onClose={() => setShowBackgroundSelector(false)}
-          currentImage={formData.backgroundImage}
-          onSelect={(imageUrl) => {
-            setFormData({ ...formData, backgroundImage: imageUrl, backgroundVideo: '' });
-            setBackgroundMode('image');
-            showToast('Background image updated!');
-          }}
-        />
-      )}
-
-      {showBackgroundVideoSelector && (
-        <BackgroundVideoSelector
-          isOpen={true}
-          onClose={() => setShowBackgroundVideoSelector(false)}
-          currentVideo={formData.backgroundVideo}
-          onSelect={(videoUrl) => {
-            setFormData({ ...formData, backgroundVideo: videoUrl, backgroundImage: '' });
-            setBackgroundMode('video');
-            showToast('Background video updated!');
-          }}
         />
       )}
 

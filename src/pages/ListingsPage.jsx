@@ -11,6 +11,7 @@ import { AddListingModal } from '../components/listings/AddListingModal';
 import { downloadListingsCSV } from '../services/exportService';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { getSupabaseErrorMessage, logError } from '../utils/errorMessages';
+import { convertToLegacyFormat } from '../utils/mediaMigration';
 
 const ListingsPage = ({ showToast, listings, setListings }) => {
   const { user } = useAuth();
@@ -30,6 +31,11 @@ const ListingsPage = ({ showToast, listings, setListings }) => {
     try {
       setSaving(true);
 
+      // Convert unified media to legacy format for backwards compatibility
+      const legacyMedia = updatedListing.unifiedMediaState
+        ? convertToLegacyFormat(updatedListing.unifiedMediaState)
+        : { carouselImages: updatedListing.carouselImages || [], backgroundImage: updatedListing.backgroundImage || '', backgroundVideo: updatedListing.backgroundVideo || '' };
+
       // Update in Supabase
       const { error } = await supabase
         .from('listings')
@@ -45,9 +51,9 @@ const ListingsPage = ({ showToast, listings, setListings }) => {
           price: updatedListing.price,
           tvs: updatedListing.tvs,
           amenities: updatedListing.amenities,
-          carousel_images: updatedListing.carouselImages,
-          background_image: updatedListing.backgroundImage,
-          background_video: updatedListing.backgroundVideo,
+          carousel_images: legacyMedia.carouselImages,
+          background_image: legacyMedia.backgroundImage,
+          background_video: legacyMedia.backgroundVideo,
           background_music: updatedListing.backgroundMusic,
           tv_layout: updatedListing.tvLayout,
           language: updatedListing.language,
