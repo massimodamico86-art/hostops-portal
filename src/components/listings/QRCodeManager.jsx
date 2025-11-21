@@ -223,7 +223,7 @@ export const QRCodeManager = ({ formData, setFormData, showToast }) => {
                   .from('qr_codes')
                   .insert([{
                     listing_id: formData.id,
-                    qr_type: 'WiFi',
+                    qr_type: 'wifi',
                     qr_name: `${formData.wifiNetwork} Network`,
                     qr_details: qrCodeDataUrl
                   }])
@@ -295,9 +295,9 @@ export const QRCodeManager = ({ formData, setFormData, showToast }) => {
                   .from('qr_codes')
                   .insert([{
                     listing_id: formData.id,
-                    qr_type: '',
-                    qr_name: '',
-                    qr_details: ''
+                    qr_type: 'custom',
+                    qr_name: 'New QR Code',
+                    qr_details: 'https://'
                   }])
                   .select()
                   .single();
