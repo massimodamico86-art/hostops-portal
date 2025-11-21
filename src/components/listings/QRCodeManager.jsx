@@ -253,10 +253,20 @@ export const QRCodeManager = ({ formData, setFormData, showToast }) => {
                 }
               } catch (error) {
                 console.error('Error adding WiFi QR code:', error);
+                console.error('Error details:', JSON.stringify(error, null, 2));
                 if (showToast) {
-                  const errorMsg = error.message || 'Unknown error';
-                  const hint = error.hint ? ` (${error.hint})` : '';
-                  showToast(`Error creating WiFi QR code: ${errorMsg}${hint}`, 'error');
+                  // Extract Supabase error details
+                  const errorMsg = error?.message || error?.msg || error?.error_description || String(error);
+                  const hint = error?.hint || '';
+                  const code = error?.code || '';
+                  const details = error?.details || '';
+
+                  let fullMessage = `Error creating WiFi QR code: ${errorMsg}`;
+                  if (hint) fullMessage += `\nHint: ${hint}`;
+                  if (code) fullMessage += `\nCode: ${code}`;
+                  if (details) fullMessage += `\nDetails: ${details}`;
+
+                  showToast(fullMessage, 'error');
                 }
               } finally {
                 setLoading(false);
@@ -315,11 +325,20 @@ export const QRCodeManager = ({ formData, setFormData, showToast }) => {
                 }
               } catch (error) {
                 console.error('Error adding QR code:', error);
+                console.error('Error details:', JSON.stringify(error, null, 2));
                 if (showToast) {
-                  const errorMsg = error.message || 'Unknown error';
-                  const hint = error.hint ? ` (${error.hint})` : '';
-                  const code = error.code ? ` [${error.code}]` : '';
-                  showToast(`Error adding QR code: ${errorMsg}${hint}${code}`, 'error');
+                  // Extract Supabase error details
+                  const errorMsg = error?.message || error?.msg || error?.error_description || String(error);
+                  const hint = error?.hint || '';
+                  const code = error?.code || '';
+                  const details = error?.details || '';
+
+                  let fullMessage = `Error adding QR code: ${errorMsg}`;
+                  if (hint) fullMessage += `\nHint: ${hint}`;
+                  if (code) fullMessage += `\nCode: ${code}`;
+                  if (details) fullMessage += `\nDetails: ${details}`;
+
+                  showToast(fullMessage, 'error');
                 }
               }
             }}
