@@ -190,6 +190,7 @@ export const QRCodeManager = ({ formData, setFormData, showToast }) => {
           <Button
             size="sm"
             variant="outline"
+            title={!formData.wifiNetwork ? "Configure WiFi network in settings above first" : "Generate QR code from WiFi settings"}
             onClick={async () => {
               try {
                 // Check if WiFi credentials are configured
@@ -258,6 +259,7 @@ export const QRCodeManager = ({ formData, setFormData, showToast }) => {
           <Button
             size="sm"
             variant="outline"
+            title="Add custom QR code (upload image, generate from URL/text)"
             onClick={async () => {
               try {
                 // Insert into Supabase
@@ -305,6 +307,22 @@ export const QRCodeManager = ({ formData, setFormData, showToast }) => {
           </Button>
         </div>
       </div>
+
+      {/* Help Banner */}
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-start gap-2">
+          <div className="text-blue-600 mt-0.5 text-lg">ℹ️</div>
+          <div className="flex-1 text-sm text-blue-900">
+            <strong className="block mb-1">Quick Guide:</strong>
+            <ul className="list-disc list-inside space-y-1 text-blue-800">
+              <li><strong>WiFi QR:</strong> Click "Add WiFi QR" to auto-generate from WiFi settings above</li>
+              <li><strong>Custom QR:</strong> Click "Add New" → Enter URL/text → Click "Generate" button</li>
+              <li><strong>Upload QR:</strong> Click "Add New" → Click "Upload" button → Select image</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b text-xs text-gray-600">
