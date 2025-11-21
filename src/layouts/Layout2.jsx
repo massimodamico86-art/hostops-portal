@@ -1,9 +1,6 @@
-import { useState, useEffect } from 'react';
 import { replaceGuestPlaceholders } from "../utils/guestHelpers";
 
 export default function Layout2({ layout, guest }) {
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-
   const {
     showWelcomeMessage,
     welcomeGreeting = "Welcome, {{Guest}}!",
@@ -28,7 +25,6 @@ export default function Layout2({ layout, guest }) {
     contactEmail,
     backgroundImage,
     backgroundVideo,
-    carouselImages,
   } = layout;
 
   // Helper to format time
@@ -54,31 +50,28 @@ export default function Layout2({ layout, guest }) {
     day: 'numeric'
   }).format(now);
 
-  const images = carouselImages?.length
-    ? carouselImages
-    : backgroundImage
-      ? [backgroundImage]
-      : ["https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=3840"];
-
-  // Auto-rotate carousel every 5 seconds
-  useEffect(() => {
-    if (images.length > 1) {
-      const interval = setInterval(() => {
-        setActiveImageIndex((prev) => (prev + 1) % images.length);
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [images.length]);
-
   return (
     <div className="w-full h-full relative text-white overflow-hidden bg-black">
-      {/* Background - Full autumn forest */}
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1477346611705-65d1883cee1e?w=3840)',
-        }}
-      />
+      {/* Background Image or Video */}
+      {backgroundVideo ? (
+        <video
+          className="absolute inset-0 w-full h-full object-cover"
+          src={backgroundVideo}
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+      ) : (
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: backgroundImage
+              ? `url(${backgroundImage})`
+              : 'url(https://images.unsplash.com/photo-1477346611705-65d1883cee1e?w=3840)',
+          }}
+        />
+      )}
 
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/50" />
