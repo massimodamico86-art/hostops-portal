@@ -5,10 +5,16 @@ import { Layout1, Layout2, Layout3, Layout4 } from '../../layouts';
 import { getConfig } from '../../getConfig';
 import { getWeather } from '../../services/weatherService';
 import { getActiveGuestForLayout } from '../../utils/guestHelpers';
+import { useMediaPlayback } from '../../hooks/useMediaPlayback';
+import { DEFAULT_UNIFIED_MEDIA_STATE } from '../../types/media';
 
 export const TVPreviewModal = ({ listing, onClose }) => {
   const layout = listing.tvLayout || 'layout1';
   const [weatherData, setWeatherData] = useState(null);
+
+  // Use unified media playback system
+  const unifiedMediaState = listing.unifiedMediaState || DEFAULT_UNIFIED_MEDIA_STATE;
+  const mediaPlayback = useMediaPlayback(unifiedMediaState);
 
   // Fetch weather data when modal opens
   useEffect(() => {
@@ -37,10 +43,15 @@ export const TVPreviewModal = ({ listing, onClose }) => {
 
   const LayoutComponent = layoutComponents[layout] || Layout1;
 
+  // Get current media from unified playback
+  const currentMedia = mediaPlayback.currentItem;
+  const backgroundImage = mediaPlayback.activeType === 'image' && currentMedia ? currentMedia.url : '';
+  const backgroundVideo = mediaPlayback.activeType === 'video' && currentMedia ? currentMedia.url : '';
+
   // Format listing data to match the layout prop structure
   const layoutData = {
-    backgroundImage: listing.backgroundImage,
-    backgroundVideo: listing.backgroundVideo,
+    backgroundImage,
+    backgroundVideo,
     propertyName: listing.name,
     showWelcomeMessage: listing.showWelcomeMessage,
     welcomeGreeting: listing.welcomeGreeting,
