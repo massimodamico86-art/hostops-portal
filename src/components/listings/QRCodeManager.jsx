@@ -193,6 +193,14 @@ export const QRCodeManager = ({ formData, setFormData, showToast }) => {
             title={!formData.wifiNetwork ? "Configure WiFi network in settings above first" : "Generate QR code from WiFi settings"}
             onClick={async () => {
               try {
+                // Check if listing is saved first
+                if (!formData.id) {
+                  if (showToast) {
+                    showToast('Please save the listing first before adding QR codes', 'error');
+                  }
+                  return;
+                }
+
                 // Check if WiFi credentials are configured
                 if (!formData.wifiNetwork || !formData.wifiNetwork.trim()) {
                   if (showToast) {
@@ -246,7 +254,9 @@ export const QRCodeManager = ({ formData, setFormData, showToast }) => {
               } catch (error) {
                 console.error('Error adding WiFi QR code:', error);
                 if (showToast) {
-                  showToast('Error creating WiFi QR code: ' + error.message, 'error');
+                  const errorMsg = error.message || 'Unknown error';
+                  const hint = error.hint ? ` (${error.hint})` : '';
+                  showToast(`Error creating WiFi QR code: ${errorMsg}${hint}`, 'error');
                 }
               } finally {
                 setLoading(false);
@@ -262,6 +272,14 @@ export const QRCodeManager = ({ formData, setFormData, showToast }) => {
             title="Add custom QR code (upload image, generate from URL/text)"
             onClick={async () => {
               try {
+                // Check if listing is saved first
+                if (!formData.id) {
+                  if (showToast) {
+                    showToast('Please save the listing first before adding QR codes', 'error');
+                  }
+                  return;
+                }
+
                 // Insert into Supabase
                 const { data, error } = await supabase
                   .from('qr_codes')
@@ -298,7 +316,10 @@ export const QRCodeManager = ({ formData, setFormData, showToast }) => {
               } catch (error) {
                 console.error('Error adding QR code:', error);
                 if (showToast) {
-                  showToast('Error adding QR code: ' + error.message, 'error');
+                  const errorMsg = error.message || 'Unknown error';
+                  const hint = error.hint ? ` (${error.hint})` : '';
+                  const code = error.code ? ` [${error.code}]` : '';
+                  showToast(`Error adding QR code: ${errorMsg}${hint}${code}`, 'error');
                 }
               }
             }}
